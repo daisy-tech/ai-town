@@ -136,7 +136,7 @@ https://github.com/michalochman/react-pixi-fiber/issues/145#issuecomment-5315492
                 »
               </button>
             </div>
-            <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-6" ref={scrollViewRef}>
+            <div className="flex-1 flex flex-col overflow-y-auto px-4 py-4 sm:px-6" ref={scrollViewRef}>
               {activeTab === 'settings' && <SettingsTab />}
               {activeTab === 'characters' && (
                 <CharactersTab
