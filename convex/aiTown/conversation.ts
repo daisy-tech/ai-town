@@ -16,6 +16,9 @@ export class Conversation {
   id: GameId<'conversations'>;
   creator: GameId<'players'>;
   created: number;
+  // Remote conversations don't require the participants to stand next to
+  // each other: they chat "over the network" via the side panel.
+  remote?: boolean;
   isTyping?: {
     playerId: GameId<'players'>;
     messageUuid: string;
@@ -33,6 +36,7 @@ export class Conversation {
     this.id = parseGameId('conversations', id);
     this.creator = parseGameId('players', creator);
     this.created = created;
+    this.remote = serialized.remote;
     this.isTyping = isTyping && {
       playerId: parseGameId('players', isTyping.playerId),
       messageUuid: isTyping.messageUuid,
@@ -60,6 +64,20 @@ export class Conversation {
 
     const player1 = game.world.players.get(playerId1)!;
     const player2 = game.world.players.get(playerId2)!;
+
+    // Remote conversations skip all of the "walk over and face each other"
+    // choreography: as soon as a member has accepted (walkingOver), they
+    // start participating immediately.
+    if (this.remote) {
+      for (const member of [member1, member2]) {
+        if (member.status.kind === 'walkingOver') {
+          const player = game.world.players.get(member.playerId)!;
+          stopPlayer(player);
+          member.status = { kind: 'participating', started: now };
+        }
+      }
+      return;
+    }
 
     const playerDistance = distance(player1?.position, player2?.position);
 
@@ -119,7 +137,7 @@ export class Conversation {
     }
   }
 
-  static start(game: Game, now: number, player: Player, invitee: Player) {
+  static start(game: Game, now: number, player: Player, invitee: Player, remote?: boolean) {
     if (player.id === invitee.id) {
       throw new Error(`Can't invite yourself to a conversation`);
     }
@@ -142,6 +160,7 @@ export class Conversation {
         id: conversationId,
         created: now,
         creator: player.id,
+        remote,
         numMessages: 0,
         participants: [
           { playerId: player.id, invited: now, status: { kind: 'walkingOver' } },
@@ -171,6 +190,11 @@ export class Conversation {
       throw new Error(
         `Invalid membership status for ${player.id}:${this.id}: ${JSON.stringify(member)}`,
       );
+    }
+    // When a human accepts an invite, upgrade the conversation to remote so
+    // nobody has to walk over: both sides start chatting right away.
+    if (player.human) {
+      this.remote = true;
     }
     member.status = { kind: 'walkingOver' };
   }
@@ -211,11 +235,12 @@ export class Conversation {
   }
 
   serialize(): SerializedConversation {
-    const { id, creator, created, isTyping, lastMessage, numMessages } = this;
+    const { id, creator, created, remote, isTyping, lastMessage, numMessages } = this;
     return {
       id,
       creator,
       created,
+      remote,
       isTyping,
       lastMessage,
       numMessages,
@@ -228,6 +253,7 @@ export const serializedConversation = {
   id: conversationId,
   creator: playerId,
   created: v.number(),
+  remote: v.optional(v.boolean()),
   isTyping: v.optional(
     v.object({
       playerId,
@@ -254,6 +280,7 @@ export const conversationInputs = {
     args: {
       playerId,
       invitee: playerId,
+      remote: v.optional(v.boolean()),
     },
     handler: (game: Game, now: number, args): GameId<'conversations'> => {
       const playerId = parseGameId('players', args.playerId);
@@ -267,7 +294,7 @@ export const conversationInputs = {
         throw new Error(`Invalid player ID: ${inviteeId}`);
       }
       console.log(`Starting ${playerId} ${inviteeId}...`);
-      const { conversationId, error } = Conversation.start(game, now, player, invitee);
+      const { conversationId, error } = Conversation.start(game, now, player, invitee, args.remote);
       if (!conversationId) {
         // TODO: pass it back to the client for them to show an error.
         throw new Error(error);

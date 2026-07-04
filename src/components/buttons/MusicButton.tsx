@@ -42,7 +42,6 @@ export default function MusicButton() {
     <>
       <Button
         onClick={() => void flipSwitch()}
-        className="hidden lg:block"
         title="播放奥特曼音乐 (按m键播放/静音)"
         imgUrl={volumeImg}
       >

@@ -47,6 +47,11 @@ export default function PlayerDetails({
   );
 
   const playerDescription = playerId && game.playerDescriptions.get(playerId);
+  const isAgent = playerId && !![...game.world.agents.values()].find((a) => a.playerId === playerId);
+  const memories = useQuery(
+    api.memoryViewer.getMemoriesByPlayerId,
+    playerId && isAgent ? { playerId, limit: 15 } : 'skip',
+  );
 
   const startConversation = useSendInput(engineId, 'startConversation');
   const acceptInvite = useSendInput(engineId, 'acceptInvite');
@@ -56,7 +61,7 @@ export default function PlayerDetails({
   if (!playerId) {
     return (
       <div className="h-full text-xl flex text-center items-center p-4">
-        点击地图上的奥特战士查看对话历史
+        点击地图上的奥特战士或人物列表查看详情
       </div>
     );
   }
@@ -92,7 +97,9 @@ export default function PlayerDetails({
       return;
     }
     console.log(`Starting conversation`);
-    await toastOnError(startConversation({ playerId: humanPlayer.id, invitee: playerId }));
+    await toastOnError(
+      startConversation({ playerId: humanPlayer.id, invitee: playerId, remote: true }),
+    );
   };
   const onAcceptInvite = async () => {
     if (!humanPlayer || !humanConversation || !playerId) {
@@ -148,6 +155,13 @@ export default function PlayerDetails({
           </h2>
         </a>
       </div>
+      {!humanPlayer && !isMe && (
+        <div className="box mt-6">
+          <p className="bg-brown-700 p-2 text-base text-center leading-tight">
+            想要对话？先在「设置」中点击「加入互动」。
+          </p>
+        </div>
+      )}
       {canInvite && (
         <a
           className={
@@ -157,21 +171,21 @@ export default function PlayerDetails({
           onClick={onStartConversation}
         >
           <div className="h-full bg-clay-700 text-center">
-            <span>开始对话</span>
+            <span>发起对话</span>
           </div>
         </a>
       )}
       {waitingForAccept && (
         <a className="mt-6 button text-white shadow-solid text-xl cursor-pointer pointer-events-auto opacity-50">
           <div className="h-full bg-clay-700 text-center">
-            <span>等待接受...</span>
+            <span>等待对方同意...</span>
           </div>
         </a>
       )}
       {waitingForNearby && (
         <a className="mt-6 button text-white shadow-solid text-xl cursor-pointer pointer-events-auto opacity-50">
           <div className="h-full bg-clay-700 text-center">
-            <span>正在飞来...</span>
+            <span>正在建立对话...</span>
           </div>
         </a>
       )}
@@ -258,6 +272,35 @@ export default function PlayerDetails({
           />
         </>
       )}
+      {isAgent && memories && memories.length > 0 && (
+        <>
+          <div className="box flex-grow mt-6">
+            <h2 className="bg-brown-700 text-lg text-center">记忆</h2>
+          </div>
+          <div className="chats text-base sm:text-sm">
+            <div className="bg-brown-200 text-black p-2">
+              {memories.map((memory) => (
+                <div key={memory._id} className="leading-tight mb-4">
+                  <div className="flex gap-2 text-xs text-brown-700">
+                    <span className="flex-grow">{MEMORY_TYPE_LABELS[memory.type] ?? memory.type}</span>
+                    <span>重要度 {memory.importance.toFixed(0)}</span>
+                    <time dateTime={memory.createdAt.toString()}>
+                      {new Date(memory.createdAt).toLocaleString()}
+                    </time>
+                  </div>
+                  <p className="bg-white p-1">{memory.description}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
     </>
   );
 }
+
+const MEMORY_TYPE_LABELS: Record<string, string> = {
+  conversation: '对话',
+  reflection: '反思',
+  relationship: '关系',
+};

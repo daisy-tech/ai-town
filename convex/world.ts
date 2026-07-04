@@ -227,6 +227,31 @@ export const gameDescriptions = query({
   },
 });
 
+// List recently archived conversations (newest first) for the chat history panel.
+export const recentConversations = query({
+  args: {
+    worldId: v.id('worlds'),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const limit = args.limit ?? 30;
+    const out = [];
+    const conversations = ctx.db
+      .query('archivedConversations')
+      .withIndex('worldId', (q) => q.eq('worldId', args.worldId))
+      .order('desc');
+    for await (const conversation of conversations) {
+      if (conversation.numMessages > 0) {
+        out.push(conversation);
+      }
+      if (out.length >= limit) {
+        break;
+      }
+    }
+    return out;
+  },
+});
+
 export const previousConversation = query({
   args: {
     worldId: v.id('worlds'),

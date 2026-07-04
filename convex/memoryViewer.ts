@@ -17,6 +17,29 @@ export const listAllPlayers = query({
   },
 });
 
+// 按 playerId 获取某个角色的记忆（用于右侧人物面板）
+export const getMemoriesByPlayerId = query({
+  args: {
+    playerId: v.string(),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const limit = args.limit ?? 20;
+    const memories = await ctx.db
+      .query('memories')
+      .withIndex('playerId', (q) => q.eq('playerId', args.playerId))
+      .order('desc')
+      .take(limit);
+    return memories.map((m) => ({
+      _id: m._id,
+      description: m.description,
+      importance: m.importance,
+      type: m.data.type,
+      createdAt: m._creationTime,
+    }));
+  },
+});
+
 // 获取所有记忆（支持分页和过滤）
 export const getAllMemories = query({
   args: {

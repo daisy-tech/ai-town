@@ -25,7 +25,6 @@ export default function FreezeButton() {
     <>
       <Button
         onClick={flipSwitch}
-        className="hidden lg:block"
         title="冻结世界时，奥特战士们需要一些时间来停止他们正在做的事情。"
         imgUrl="/assets/star.svg"
       >

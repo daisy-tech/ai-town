@@ -125,6 +125,11 @@ export class Agent {
         return;
       }
       if (member.status.kind === 'walkingOver') {
+        // Remote conversations don't require walking over: the conversation's
+        // tick will promote us to "participating" momentarily.
+        if (conversation.remote) {
+          return;
+        }
         // Leave a conversation if we've been waiting for too long.
         if (member.invited + INVITE_TIMEOUT < now) {
           console.log(`Giving up on invite to ${otherPlayer.id}`);
