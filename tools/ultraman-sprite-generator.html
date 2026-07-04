@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>奥特曼精灵图生成工具</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #2c3e50;
+            color: white;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        h1 {
+            text-align: center;
+            color: #3498db;
+        }
+        .canvas-container {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+        canvas {
+            border: 2px solid #34495e;
+            image-rendering: pixelated;
+            image-rendering: -moz-crisp-edges;
+            image-rendering: crisp-edges;
+        }
+        #preview {
+            transform: scale(4);
+            transform-origin: top left;
+            margin-left: 150px;
+            margin-top: 150px;
+        }
+        .controls {
+            background: #34495e;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+        button {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 16px;
+        }
+        button:hover {
+            background: #2980b9;
+        }
+        .info {
+            background: #27ae60;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .warning {
+            background: #e74c3c;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🌟 奥特曼光之国 - 精灵图生成工具 🌟</h1>
+
+        <div class="info">
+            <h3>📋 使用说明:</h3>
+            <ol>
+                <li>点击"生成简易奥特曼精灵图"按钮</li>
+                <li>预览生成的精灵图</li>
+                <li>点击"下载精灵图"保存为PNG文件</li>
+                <li>将下载的文件替换到: <code>public/assets/32x32folk.png</code></li>
+                <li>刷新游戏页面查看效果</li>
+            </ol>
+        </div>
+
+        <div class="warning">
+            <h3>⚠️ 注意:</h3>
+            <p>这是一个<strong>临时的简化版本</strong>，使用彩色方块和文字标识来区分不同的奥特曼。</p>
+            <p>要获得真正的奥特曼像素艺术，请查看 <code>docs/奥特曼角色设计方案.md</code> 文档。</p>
+        </div>
+
+        <div class="controls">
+            <button onclick="generateSprites()">🎨 生成简易奥特曼精灵图</button>
+            <button onclick="downloadImage()">💾 下载精灵图 (PNG)</button>
+            <button onclick="clearCanvas()">🗑️ 清空画布</button>
+        </div>
+
+        <div class="canvas-container">
+            <h3>精灵图预览 (实际大小):</h3>
+            <canvas id="mainCanvas" width="256" height="320"></canvas>
+        </div>
+
+        <div class="canvas-container">
+            <h3>放大预览 (4x):</h3>
+            <canvas id="preview" width="256" height="320"></canvas>
+        </div>
+    </div>
+
+    <script>
+        const ultramen = [
+            { name: '迪迦', short: 'TG', color1: '#E74C3C', color2: '#9B59B6', color3: '#ECF0F1' },
+            { name: '赛罗', short: 'SL', color1: '#E74C3C', color2: '#3498DB', color3: '#ECF0F1' },
+            { name: '梦比优斯', short: 'MB', color1: '#E74C3C', color2: '#F39C12', color3: '#ECF0F1' },
+            { name: '艾斯', short: 'AS', color1: '#E74C3C', color2: '#BDC3C7', color3: '#FFFFFF' },
+            { name: '泰罗', short: 'TL', color1: '#E74C3C', color2: '#F1C40F', color3: '#3498DB' },
+        ];
+
+        function drawUltramanSprite(ctx, x, y, ultraman, frame = 0) {
+            // 背景透明
+            ctx.clearRect(x, y, 32, 32);
+
+            // 绘制简化的奥特曼身体
+            // 头部
+            ctx.fillStyle = ultraman.color1;
+            ctx.fillRect(x + 12, y + 4, 8, 8);
+
+            // 眼睛
+            ctx.fillStyle = '#F39C12';
+            ctx.fillRect(x + 13, y + 6, 2, 2);
+            ctx.fillRect(x + 17, y + 6, 2, 2);
+
+            // 身体
+            ctx.fillStyle = ultraman.color1;
+            ctx.fillRect(x + 10, y + 12, 12, 10);
+
+            // 装饰条纹
+            ctx.fillStyle = ultraman.color2;
+            ctx.fillRect(x + 11, y + 14, 10, 2);
+            ctx.fillRect(x + 11, y + 18, 10, 2);
+
+            // 腿部
+            ctx.fillStyle = ultraman.color2;
+            ctx.fillRect(x + 12, y + 22, 3, 6);
+            ctx.fillRect(x + 17, y + 22, 3, 6);
+
+            // 手臂 (根据帧调整位置实现动画效果)
+            const armOffset = frame === 1 ? -1 : frame === 2 ? 1 : 0;
+            ctx.fillStyle = ultraman.color1;
+            ctx.fillRect(x + 8 + armOffset, y + 14, 2, 6);
+            ctx.fillRect(x + 22 - armOffset, y + 14, 2, 6);
+
+            // 彩色计时器
+            ctx.fillStyle = '#3498DB';
+            ctx.fillRect(x + 15, y + 16, 2, 2);
+
+            // 文字标识
+            ctx.fillStyle = '#000000';
+            ctx.font = 'bold 8px monospace';
+            ctx.fillText(ultraman.short, x + 10, y + 30);
+        }
+
+        function generateSprites() {
+            const canvas = document.getElementById('mainCanvas');
+            const ctx = canvas.getContext('2d');
+            const previewCanvas = document.getElementById('preview');
+            const previewCtx = previewCanvas.getContext('2d');
+
+            // 清空画布
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            ultramen.forEach((ultraman, index) => {
+                const baseY = index * 64;
+
+                // 正面帧
+                drawUltramanSprite(ctx, 0, baseY, ultraman, 0);
+                drawUltramanSprite(ctx, 32, baseY, ultraman, 1);
+                drawUltramanSprite(ctx, 64, baseY, ultraman, 2);
+
+                // 背面帧
+                drawUltramanSprite(ctx, 96, baseY, ultraman, 0);
+                drawUltramanSprite(ctx, 128, baseY, ultraman, 1);
+                drawUltramanSprite(ctx, 160, baseY, ultraman, 2);
+
+                // 左侧帧
+                drawUltramanSprite(ctx, 0, baseY + 32, ultraman, 0);
+                drawUltramanSprite(ctx, 32, baseY + 32, ultraman, 1);
+                drawUltramanSprite(ctx, 64, baseY + 32, ultraman, 2);
+
+                // 右侧帧
+                drawUltramanSprite(ctx, 96, baseY + 32, ultraman, 0);
+                drawUltramanSprite(ctx, 128, baseY + 32, ultraman, 1);
+                drawUltramanSprite(ctx, 160, baseY + 32, ultraman, 2);
+            });
+
+            // 更新预览
+            previewCtx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
+            previewCtx.imageSmoothingEnabled = false;
+            previewCtx.drawImage(canvas, 0, 0);
+
+            alert('✅ 精灵图生成成功！\n\n' +
+                  '包含以下角色:\n' +
+                  ultramen.map(u => `• ${u.name}奥特曼 (${u.short})`).join('\n') +
+                  '\n\n点击"下载精灵图"按钮保存文件。');
+        }
+
+        function downloadImage() {
+            const canvas = document.getElementById('mainCanvas');
+            const link = document.createElement('a');
+            link.download = '32x32folk-ultraman.png';
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+
+            alert('✅ 下载完成！\n\n' +
+                  '请将下载的文件重命名为 32x32folk.png\n' +
+                  '然后替换到项目的 public/assets/ 目录下。');
+        }
+
+        function clearCanvas() {
+            const canvas = document.getElementById('mainCanvas');
+            const ctx = canvas.getContext('2d');
+            const previewCanvas = document.getElementById('preview');
+            const previewCtx = previewCanvas.getContext('2d');
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            previewCtx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
+        }
+
+        // 页面加载时自动生成
+        window.onload = function() {
+            setTimeout(generateSprites, 500);
+        };
+    </script>
+</body>
+</html>

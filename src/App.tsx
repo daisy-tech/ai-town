@@ -31,34 +31,25 @@ export default function Home() {
         ariaHideApp={false}
       >
         <div className="font-body">
-          <h1 className="text-center text-6xl font-bold font-display game-title">Help</h1>
+          <h1 className="text-center text-6xl font-bold font-display game-title">帮助</h1>
           <p>
-            Welcome to AI town. AI town supports both anonymous <i>spectators</i> and logged in{' '}
-            <i>interactivity</i>.
+            欢迎来到奥特曼光之国！这里是奥特战士们生活和训练的地方。你可以选择作为<i>观察者</i>旁观，也可以<i>登录加入</i>与奥特战士们互动。
           </p>
-          <h2 className="text-4xl mt-4">Spectating</h2>
+          <h2 className="text-4xl mt-4">观察模式</h2>
           <p>
-            Click and drag to move around the town, and scroll in and out to zoom. You can click on
-            an individual character to view its chat history.
+            点击并拖动可以在光之国中移动视角，滚动鼠标可以缩放。点击任意奥特战士可以查看他们的对话历史。
           </p>
-          <h2 className="text-4xl mt-4">Interactivity</h2>
+          <h2 className="text-4xl mt-4">互动模式</h2>
           <p>
-            If you log in, you can join the simulation and directly talk to different agents! After
-            logging in, click the "Interact" button, and your character will appear somewhere on the
-            map with a highlighted circle underneath you.
+            登录后，你可以加入光之国，直接与奥特战士们对话！点击"加入互动"按钮，你的角色会出现在地图上，脚下有一个高亮圆圈。
           </p>
-          <p className="text-2xl mt-2">Controls:</p>
-          <p className="mt-4">Click to navigate around.</p>
+          <p className="text-2xl mt-2">操作说明：</p>
+          <p className="mt-4">点击地图上的位置可以移动。</p>
           <p className="mt-4">
-            To talk to an agent, click on them and then click "Start conversation," which will ask
-            them to start walking towards you. Once they're nearby, the conversation will start, and
-            you can speak to each other. You can leave at any time by closing the conversation pane
-            or moving away. They may propose a conversation to you - you'll see a button to accept
-            in the messages panel.
+            要与奥特战士对话，点击他们，然后点击"开始对话"按钮，他们会向你走来。当他们靠近时，对话就会开始，你们可以互相交流。你可以随时关闭对话面板或走开来结束对话。他们也可能主动邀请你对话，你会在消息面板中看到接受按钮。
           </p>
           <p className="mt-4">
-            AI town only supports {MAX_HUMAN_PLAYERS} humans at a time. If you're idle for five
-            minutes, you'll be automatically removed from the simulation.
+            光之国最多支持{MAX_HUMAN_PLAYERS}位人类访客同时在线。如果你闲置超过5分钟，会自动离开光之国。
           </p>
         </div>
       </ReactModal>
@@ -74,11 +65,11 @@ export default function Home() {
 
       <div className="w-full lg:h-screen min-h-screen relative isolate overflow-hidden lg:p-8 shadow-2xl flex flex-col justify-start">
         <h1 className="mx-auto text-4xl p-3 sm:text-8xl lg:text-9xl font-bold font-display leading-none tracking-wide game-title w-full text-left sm:text-center sm:w-auto">
-          AI Town
+          光之国
         </h1>
 
         <div className="max-w-xs md:max-w-xl lg:max-w-none mx-auto my-4 text-center text-base sm:text-xl md:text-2xl text-white leading-tight shadow-solid">
-          A virtual town where AI characters live, chat and socialize.
+          奥特战士们生活的虚拟世界，在这里他们交流、训练，守护宇宙和平。
           {/* <Unauthenticated>
             <div className="my-1.5 sm:my-0" />
             Log in to join the town
@@ -93,11 +84,11 @@ export default function Home() {
             <FreezeButton />
             <MusicButton />
             <Button href="https://github.com/a16z-infra/ai-town" imgUrl={starImg}>
-              Star
+              源码
             </Button>
             <InteractButton />
             <Button imgUrl={helpImg} onClick={() => setHelpModalOpen(true)}>
-              Help
+              帮助
             </Button>
           </div>
           <a href="https://a16z.com">

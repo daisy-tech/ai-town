@@ -85,7 +85,7 @@ export function MessageInput({
           contentEditable
           style={{ outline: 'none' }}
           tabIndex={0}
-          placeholder="Type here"
+          placeholder="在这里输入..."
           onKeyDown={(e) => onKeyDown(e)}
         />
       </div>

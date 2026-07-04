@@ -127,7 +127,7 @@ export const agentInputs = {
         now,
         description.name,
         description.character,
-        description.identity,
+        description.description || description.identity, // 使用 description 字段，如果没有则回退到 identity
       );
       const agentId = game.allocId('agents');
       game.world.agents.set(

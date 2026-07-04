@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>奥特曼精灵图生成工具 - 高级版</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #2c3e50;
+            color: white;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        h1 {
+            text-align: center;
+            color: #3498db;
+        }
+        .upload-section {
+            background: #34495e;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+        .character-upload {
+            background: #2c3e50;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+        .character-upload label {
+            min-width: 120px;
+            font-weight: bold;
+        }
+        .character-upload input[type="file"] {
+            flex: 1;
+        }
+        .preview-box {
+            width: 64px;
+            height: 64px;
+            border: 2px solid #3498db;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #1a252f;
+            image-rendering: pixelated;
+            overflow: hidden;
+        }
+        .preview-box img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            image-rendering: pixelated;
+        }
+        .canvas-container {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+        canvas {
+            border: 2px solid #34495e;
+            image-rendering: pixelated;
+            image-rendering: -moz-crisp-edges;
+            image-rendering: crisp-edges;
+        }
+        .controls {
+            background: #34495e;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            text-align: center;
+        }
+        button {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 16px;
+        }
+        button:hover {
+            background: #2980b9;
+        }
+        button:disabled {
+            background: #7f8c8d;
+            cursor: not-allowed;
+        }
+        .info {
+            background: #27ae60;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .warning {
+            background: #e67e22;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .status {
+            text-align: center;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        .status.success { background: #27ae60; }
+        .status.error { background: #e74c3c; }
+        .status.info { background: #3498db; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🌟 奥特曼光之国 - 精灵图生成工具（高级版）🌟</h1>
+
+        <div class="info">
+            <h3>📋 使用说明:</h3>
+            <ol>
+                <li>为每个奥特曼角色上传一张图片（推荐使用PNG格式，背景透明效果更好）</li>
+                <li>图片会自动缩放到32x32像素并生成动画帧</li>
+                <li>点击"生成完整精灵图"按钮生成包含所有角色的精灵图</li>
+                <li>点击"下载完整精灵图"保存，然后替换到 <code>public/assets/32x32folk.png</code></li>
+                <li>刷新游戏页面查看效果</li>
+            </ol>
+        </div>
+
+        <div class="warning">
+            <h3>⚠️ 注意:</h3>
+            <p>• 推荐使用正面站立姿态的奥特曼图片</p>
+            <p>• 图片会被自动缩放到32×32像素，过于复杂的图片可能失真</p>
+            <p>• 支持的格式：PNG、JPG、JPEG、GIF、WebP</p>
+        </div>
+
+        <div class="upload-section">
+            <h3>📤 上传奥特曼图片</h3>
+
+            <div class="character-upload">
+                <label>迪迦奥特曼:</label>
+                <input type="file" id="upload-0" accept="image/*" onchange="handleImageUpload(0, event)">
+                <div class="preview-box" id="preview-0"></div>
+            </div>
+
+            <div class="character-upload">
+                <label>赛罗奥特曼:</label>
+                <input type="file" id="upload-1" accept="image/*" onchange="handleImageUpload(1, event)">
+                <div class="preview-box" id="preview-1"></div>
+            </div>
+
+            <div class="character-upload">
+                <label>梦比优斯奥特曼:</label>
+                <input type="file" id="upload-2" accept="image/*" onchange="handleImageUpload(2, event)">
+                <div class="preview-box" id="preview-2"></div>
+            </div>
+
+            <div class="character-upload">
+                <label>艾斯奥特曼:</label>
+                <input type="file" id="upload-3" accept="image/*" onchange="handleImageUpload(3, event)">
+                <div class="preview-box" id="preview-3"></div>
+            </div>
+
+            <div class="character-upload">
+                <label>泰罗奥特曼:</label>
+                <input type="file" id="upload-4" accept="image/*" onchange="handleImageUpload(4, event)">
+                <div class="preview-box" id="preview-4"></div>
+            </div>
+        </div>
+
+        <div id="status" class="status info" style="display: none;">
+            等待上传图片...
+        </div>
+
+        <div class="controls">
+            <button id="generateBtn" onclick="generateFullSpritesheet()" disabled>
+                🎨 生成完整精灵图
+            </button>
+            <button id="downloadBtn" onclick="downloadFullSpritesheet()" disabled>
+                💾 下载完整精灵图 (32x32folk.png)
+            </button>
+            <button onclick="clearAll()">🗑️ 清空重置</button>
+        </div>
+
+        <div class="canvas-container">
+            <h3>精灵图预览 (256×320 像素):</h3>
+            <canvas id="mainCanvas" width="256" height="320"></canvas>
+        </div>
+
+        <div class="canvas-container">
+            <h3>放大预览 (4倍):</h3>
+            <div style="overflow: auto; max-width: 100%;">
+                <canvas id="previewCanvas" width="1024" height="1280" style="width: 1024px; height: 1280px;"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const ultramen = [
+            { name: '迪迦奥特曼', short: 'TG' },
+            { name: '赛罗奥特曼', short: 'SL' },
+            { name: '梦比优斯奥特曼', short: 'MB' },
+            { name: '艾斯奥特曼', short: 'AS' },
+            { name: '泰罗奥特曼', short: 'TL' },
+        ];
+
+        // 存储上传的图片
+        const uploadedImages = new Array(5).fill(null);
+
+        // 处理图片上传
+        async function handleImageUpload(index, event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = new Image();
+                img.onload = function() {
+                    // 创建临时canvas来缩放图片到32x32
+                    const tempCanvas = document.createElement('canvas');
+                    tempCanvas.width = 32;
+                    tempCanvas.height = 32;
+                    const tempCtx = tempCanvas.getContext('2d');
+
+                    // 关闭平滑缩放以保持像素风格
+                    tempCtx.imageSmoothingEnabled = false;
+
+                    // 绘制缩放后的图片
+                    tempCtx.drawImage(img, 0, 0, 32, 32);
+
+                    // 保存处理后的图片
+                    uploadedImages[index] = tempCanvas;
+
+                    // 显示预览
+                    const previewBox = document.getElementById(`preview-${index}`);
+                    previewBox.innerHTML = '';
+                    const previewImg = new Image();
+                    previewImg.src = tempCanvas.toDataURL();
+                    previewImg.style.width = '100%';
+                    previewImg.style.height = '100%';
+                    previewBox.appendChild(previewImg);
+
+                    updateStatus();
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // 更新状态
+        function updateStatus() {
+            const uploadedCount = uploadedImages.filter(img => img !== null).length;
+            const statusDiv = document.getElementById('status');
+            const generateBtn = document.getElementById('generateBtn');
+
+            statusDiv.style.display = 'block';
+
+            if (uploadedCount === 0) {
+                statusDiv.className = 'status info';
+                statusDiv.textContent = '请上传奥特曼图片';
+                generateBtn.disabled = true;
+            } else if (uploadedCount < 5) {
+                statusDiv.className = 'status info';
+                statusDiv.textContent = `已上传 ${uploadedCount}/5 个角色，可以继续上传或直接生成`;
+                generateBtn.disabled = false;
+            } else {
+                statusDiv.className = 'status success';
+                statusDiv.textContent = '✅ 所有角色图片已上传！点击"生成完整精灵图"按钮';
+                generateBtn.disabled = false;
+            }
+        }
+
+        // 生成单个精灵（用于动画帧）
+        function drawSpriteFrame(ctx, x, y, sourceCanvas, flipH = false, flipV = false, offsetX = 0, offsetY = 0) {
+            if (!sourceCanvas) {
+                // 如果没有图片，绘制占位符
+                ctx.fillStyle = '#95a5a6';
+                ctx.fillRect(x, y, 32, 32);
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 12px Arial';
+                ctx.fillText('?', x + 12, y + 20);
+                return;
+            }
+
+            ctx.save();
+
+            // 设置变换
+            ctx.translate(x + 16, y + 16);
+            if (flipH) ctx.scale(-1, 1);
+            if (flipV) ctx.scale(1, -1);
+            ctx.translate(-16 + offsetX, -16 + offsetY);
+
+            // 关闭平滑以保持像素风格
+            ctx.imageSmoothingEnabled = false;
+
+            // 绘制图片
+            ctx.drawImage(sourceCanvas, 0, 0, 32, 32);
+
+            ctx.restore();
+        }
+
+        // 生成完整精灵图
+        function generateFullSpritesheet() {
+            const canvas = document.getElementById('mainCanvas');
+            const ctx = canvas.getContext('2d');
+            const previewCanvas = document.getElementById('previewCanvas');
+            const previewCtx = previewCanvas.getContext('2d');
+
+            // 清空画布
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // 为每个角色生成精灵图
+            uploadedImages.forEach((sourceCanvas, index) => {
+                const baseY = index * 64; // 每个角色占用64像素高度（2行，每行32像素）
+
+                // 第一行：正面(下)和背面(上)方向，各3帧动画
+                // 正面朝下 - 3帧
+                drawSpriteFrame(ctx, 0, baseY, sourceCanvas, false, false, 0, 0);      // 静止
+                drawSpriteFrame(ctx, 32, baseY, sourceCanvas, false, false, -1, 1);    // 左脚前
+                drawSpriteFrame(ctx, 64, baseY, sourceCanvas, false, false, 1, 1);     // 右脚前
+
+                // 背面朝上 - 3帧
+                drawSpriteFrame(ctx, 96, baseY, sourceCanvas, false, true, 0, 0);      // 静止
+                drawSpriteFrame(ctx, 128, baseY, sourceCanvas, false, true, -1, -1);   // 左脚前
+                drawSpriteFrame(ctx, 160, baseY, sourceCanvas, false, true, 1, -1);    // 右脚前
+
+                // 第二行：左侧和右侧方向，各3帧动画
+                // 左侧 - 3帧
+                drawSpriteFrame(ctx, 0, baseY + 32, sourceCanvas, false, false, 0, 0);     // 静止
+                drawSpriteFrame(ctx, 32, baseY + 32, sourceCanvas, false, false, -2, 0);   // 向左移动
+                drawSpriteFrame(ctx, 64, baseY + 32, sourceCanvas, false, false, -1, 1);   // 左脚前
+
+                // 右侧 - 3帧（镜像左侧）
+                drawSpriteFrame(ctx, 96, baseY + 32, sourceCanvas, true, false, 0, 0);     // 静止
+                drawSpriteFrame(ctx, 128, baseY + 32, sourceCanvas, true, false, 2, 0);    // 向右移动
+                drawSpriteFrame(ctx, 160, baseY + 32, sourceCanvas, true, false, 1, 1);    // 右脚前
+            });
+
+            // 更新4倍放大预览
+            previewCtx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
+            previewCtx.imageSmoothingEnabled = false;
+            previewCtx.drawImage(canvas, 0, 0, 1024, 1280);
+
+            // 启用下载按钮
+            document.getElementById('downloadBtn').disabled = false;
+
+            const uploadedCount = uploadedImages.filter(img => img !== null).length;
+            const statusDiv = document.getElementById('status');
+            statusDiv.className = 'status success';
+            statusDiv.textContent = `✅ 精灵图生成成功！包含 ${uploadedCount} 个角色，共 ${uploadedCount * 24} 个动画帧`;
+        }
+
+        // 下载完整精灵图
+        function downloadFullSpritesheet() {
+            const canvas = document.getElementById('mainCanvas');
+            const link = document.createElement('a');
+            link.download = '32x32folk.png';
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+
+            const statusDiv = document.getElementById('status');
+            statusDiv.className = 'status success';
+            statusDiv.textContent = '✅ 下载完成！请将文件替换到 public/assets/32x32folk.png';
+        }
+
+        // 清空所有
+        function clearAll() {
+            if (!confirm('确定要清空所有上传的图片吗？')) return;
+
+            // 清空图片数组
+            uploadedImages.fill(null);
+
+            // 清空文件输入
+            for (let i = 0; i < 5; i++) {
+                document.getElementById(`upload-${i}`).value = '';
+                document.getElementById(`preview-${i}`).innerHTML = '';
+            }
+
+            // 清空画布
+            const canvas = document.getElementById('mainCanvas');
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            const previewCanvas = document.getElementById('previewCanvas');
+            const previewCtx = previewCanvas.getContext('2d');
+            previewCtx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
+
+            // 禁用按钮
+            document.getElementById('generateBtn').disabled = true;
+            document.getElementById('downloadBtn').disabled = true;
+
+            updateStatus();
+        }
+
+        // 页面加载完成
+        window.onload = function() {
+            updateStatus();
+        };
+    </script>
+</body>
+</html>

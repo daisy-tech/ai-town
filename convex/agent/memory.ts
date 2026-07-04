@@ -42,9 +42,7 @@ export async function rememberConversation(
   const llmMessages: LLMMessage[] = [
     {
       role: 'user',
-      content: `You are ${player.name}, and you just finished a conversation with ${otherPlayer.name}. I would
-      like you to summarize the conversation from ${player.name}'s perspective, using first-person pronouns like
-      "I," and add if you liked or disliked this interaction.`,
+      content: `你是${player.name}，你刚刚和${otherPlayer.name}结束了一次对话。请用中文从${player.name}的视角总结这次对话，使用第一人称代词如"我"，并说明你是否喜欢或不喜欢这次互动。`,
     },
   ];
   const authors = new Set<GameId<'players'>>();
@@ -54,17 +52,17 @@ export async function rememberConversation(
     const recipient = message.author === player.id ? otherPlayer : player;
     llmMessages.push({
       role: 'user',
-      content: `${author.name} to ${recipient.name}: ${message.text}`,
+      content: `${author.name}对${recipient.name}说：${message.text}`,
     });
   }
-  llmMessages.push({ role: 'user', content: 'Summary:' });
+  llmMessages.push({ role: 'user', content: '总结：' });
   const { content } = await chatCompletion({
     messages: llmMessages,
     max_tokens: 500,
   });
-  const description = `Conversation with ${otherPlayer.name} at ${new Date(
+  const description = `与${otherPlayer.name}在${new Date(
     data.conversation._creationTime,
-  ).toLocaleString()}: ${content}`;
+  ).toLocaleString()}的对话：${content}`;
   const importance = await calculateImportance(description);
   const { embedding } = await fetchEmbedding(description);
   authors.delete(player.id as GameId<'players'>);
@@ -346,17 +344,17 @@ async function reflectOnMemories(
     return false;
   }
   console.debug('sum of importance score = ', sumOfImportanceScore);
-  console.debug('Reflecting...');
-  const prompt = ['[no prose]', '[Output only JSON]', `You are ${name}, statements about you:`];
+  console.debug('反思中...');
+  const prompt = ['[不要使用散文]', '[仅输出JSON]', `你是${name}，关于你的陈述：`];
   memories.forEach((m, idx) => {
-    prompt.push(`Statement ${idx}: ${m.description}`);
+    prompt.push(`陈述${idx}：${m.description}`);
   });
-  prompt.push('What 3 high-level insights can you infer from the above statements?');
+  prompt.push('你能从以上陈述中推断出哪3条高层次的见解？');
   prompt.push(
-    'Return in JSON format, where the key is a list of input statements that contributed to your insights and value is your insight. Make the response parseable by Typescript JSON.parse() function. DO NOT escape characters or include "\n" or white space in response.',
+    '以JSON格式返回，其中键是对你的见解有贡献的输入陈述列表，值是你的见解。使响应可被Typescript的JSON.parse()函数解析。不要转义字符或在响应中包含"\\n"或空格。',
   );
   prompt.push(
-    'Example: [{insight: "...", statementIds: [1,2]}, {insight: "...", statementIds: [1]}, ...]',
+    '示例：[{insight: "...", statementIds: [1,2]}, {insight: "...", statementIds: [1]}, ...]',
   );
 
   const { content: reflection } = await chatCompletion({
@@ -374,7 +372,7 @@ async function reflectOnMemories(
       const relatedMemoryIds = item.statementIds.map((idx: number) => memories[idx]._id);
       const importance = await calculateImportance(item.insight);
       const { embedding } = await fetchEmbedding(item.insight);
-      console.debug('adding reflection memory...', item.insight);
+      console.debug('添加反思记忆...', item.insight);
       return {
         description: item.insight,
         embedding,
@@ -389,8 +387,8 @@ async function reflectOnMemories(
       reflections: memoriesToSave,
     });
   } catch (e) {
-    console.error('error saving or parsing reflection', e);
-    console.debug('reflection', reflection);
+    console.error('保存或解析反思时出错', e);
+    console.debug('反思', reflection);
     return false;
   }
   return true;

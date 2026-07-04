@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>奥特曼记忆查看器</title>
+    <style>
+        body {
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
+            padding: 20px;
+            background: #2c3e50;
+            color: white;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        h1 {
+            text-align: center;
+            color: #3498db;
+        }
+        .container {
+            background: #34495e;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        select, button {
+            padding: 10px 20px;
+            border-radius: 5px;
+            border: none;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        select {
+            flex: 1;
+            min-width: 200px;
+            background: #2c3e50;
+            color: white;
+        }
+        button {
+            background: #3498db;
+            color: white;
+        }
+        button:hover {
+            background: #2980b9;
+        }
+        .memory-card {
+            background: #2c3e50;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            border-left: 4px solid #3498db;
+        }
+        .memory-card.reflection {
+            border-left-color: #9b59b6;
+        }
+        .memory-card.conversation {
+            border-left-color: #27ae60;
+        }
+        .memory-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            color: #ecf0f1;
+            font-size: 14px;
+        }
+        .memory-description {
+            color: #ffffff;
+            line-height: 1.6;
+            font-size: 16px;
+        }
+        .importance {
+            background: #e74c3c;
+            padding: 2px 8px;
+            border-radius: 3px;
+            font-size: 12px;
+        }
+        .type-badge {
+            background: #3498db;
+            padding: 2px 8px;
+            border-radius: 3px;
+            font-size: 12px;
+        }
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #ecf0f1;
+        }
+        .error {
+            background: #e74c3c;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .info {
+            background: #27ae60;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .stats {
+            display: flex;
+            gap: 20px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+        .stat-box {
+            background: #2c3e50;
+            padding: 15px 25px;
+            border-radius: 8px;
+            text-align: center;
+            flex: 1;
+            min-width: 150px;
+        }
+        .stat-number {
+            font-size: 32px;
+            font-weight: bold;
+            color: #3498db;
+        }
+        .stat-label {
+            font-size: 14px;
+            color: #bdc3c7;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🌟 奥特曼记忆查看器 🌟</h1>
+
+    <div class="info">
+        <strong>📋 使用说明:</strong><br>
+        1. 选择一个奥特曼角色<br>
+        2. 点击"查看记忆"按钮<br>
+        3. 浏览该角色的所有记忆和对话历史
+    </div>
+
+    <div class="container">
+        <div class="controls">
+            <select id="playerSelect">
+                <option value="">-- 选择奥特曼 --</option>
+            </select>
+            <button onclick="loadMemories()">🔍 查看记忆</button>
+            <button onclick="loadAllPlayers()">🔄 刷新角色列表</button>
+        </div>
+
+        <div id="stats" class="stats" style="display: none;">
+            <div class="stat-box">
+                <div class="stat-number" id="totalMemories">0</div>
+                <div class="stat-label">总记忆数</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-number" id="avgImportance">0</div>
+                <div class="stat-label">平均重要性</div>
+            </div>
+        </div>
+
+        <div id="results"></div>
+    </div>
+
+    <script>
+        const CONVEX_URL = 'http://localhost:5173'; // Convex dev server URL
+
+        async function loadAllPlayers() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<div class="loading">加载角色列表中...</div>';
+
+            try {
+                // 注意：这需要通过 Convex 客户端调用
+                // 这里我们提供一个简单的示例
+                const response = await fetch(`${CONVEX_URL}/api/query`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        path: 'debug:listPlayers',
+                        args: {
+                            worldId: 'YOUR_WORLD_ID' // 需要替换为实际的 worldId
+                        }
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to fetch players');
+                }
+
+                const players = await response.json();
+
+                const select = document.getElementById('playerSelect');
+                select.innerHTML = '<option value="">-- 选择奥特曼 --</option>';
+
+                players.forEach(player => {
+                    const option = document.createElement('option');
+                    option.value = player.name;
+                    option.textContent = player.name;
+                    select.appendChild(option);
+                });
+
+                resultsDiv.innerHTML = '<div class="info">✅ 角色列表已加载</div>';
+            } catch (error) {
+                resultsDiv.innerHTML = `<div class="error">❌ 加载失败: ${error.message}</div>`;
+            }
+        }
+
+        async function loadMemories() {
+            const playerName = document.getElementById('playerSelect').value;
+            if (!playerName) {
+                alert('请先选择一个奥特曼！');
+                return;
+            }
+
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<div class="loading">加载记忆中...</div>';
+
+            // 模拟数据用于演示
+            setTimeout(() => {
+                displayMockData(playerName);
+            }, 500);
+        }
+
+        function displayMockData(playerName) {
+            const mockMemories = [
+                {
+                    description: `与赛罗奥特曼在${new Date().toLocaleString()}的对话：我们讨论了如何更好地守护地球，赛罗分享了他在宇宙巡逻中的经验。`,
+                    importance: 8,
+                    type: 'conversation',
+                    createdAt: new Date().toLocaleString('zh-CN')
+                },
+                {
+                    description: '我意识到团队合作的力量远比单打独斗更强大，这让我想起了和GUYS队员们并肩作战的日子。',
+                    importance: 9,
+                    type: 'reflection',
+                    createdAt: new Date(Date.now() - 3600000).toLocaleString('zh-CN')
+                },
+                {
+                    description: '在光之国的训练场上修炼光线技能，感觉自己的能力又提升了一些。',
+                    importance: 6,
+                    type: 'activity',
+                    createdAt: new Date(Date.now() - 7200000).toLocaleString('zh-CN')
+                }
+            ];
+
+            const statsDiv = document.getElementById('stats');
+            statsDiv.style.display = 'flex';
+
+            document.getElementById('totalMemories').textContent = mockMemories.length;
+            const avgImportance = (mockMemories.reduce((sum, m) => sum + m.importance, 0) / mockMemories.length).toFixed(1);
+            document.getElementById('avgImportance').textContent = avgImportance;
+
+            let html = `<h2 style="color: #3498db; margin-top: 20px;">${playerName} 的记忆 (${mockMemories.length})</h2>`;
+
+            mockMemories.forEach(memory => {
+                html += `
+                    <div class="memory-card ${memory.type}">
+                        <div class="memory-header">
+                            <div>
+                                <span class="type-badge">${getTypeLabel(memory.type)}</span>
+                                <span class="importance">重要性: ${memory.importance}/10</span>
+                            </div>
+                            <div>${memory.createdAt}</div>
+                        </div>
+                        <div class="memory-description">${memory.description}</div>
+                    </div>
+                `;
+            });
+
+            html += '<div class="info" style="margin-top: 20px;">💡 提示: 这是模拟数据。要查看真实数据，需要配置 Convex 客户端连接。</div>';
+
+            document.getElementById('results').innerHTML = html;
+        }
+
+        function getTypeLabel(type) {
+            const labels = {
+                'conversation': '💬 对话',
+                'reflection': '💭 反思',
+                'activity': '⚡ 活动'
+            };
+            return labels[type] || type;
+        }
+
+        // 页面加载时初始化
+        window.onload = function() {
+            // 预填充奥特曼列表
+            const select = document.getElementById('playerSelect');
+            const ultramen = ['迪迦奥特曼', '赛罗奥特曼', '梦比优斯奥特曼', '艾斯奥特曼', '泰罗奥特曼'];
+            ultramen.forEach(name => {
+                const option = document.createElement('option');
+                option.value = name;
+                option.textContent = name;
+                select.appendChild(option);
+            });
+
+            document.getElementById('results').innerHTML = '<div class="info">👆 选择一个奥特曼查看他的记忆</div>';
+        };
+    </script>
+</body>
+</html>

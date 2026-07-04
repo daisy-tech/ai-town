@@ -65,9 +65,9 @@ export const DELETE_BATCH_SIZE = 64;
 export const HUMAN_IDLE_TOO_LONG = 5 * 60 * 1000;
 
 export const ACTIVITIES = [
-  { description: 'reading a book', emoji: '📖', duration: 60_000 },
-  { description: 'daydreaming', emoji: '🤔', duration: 60_000 },
-  { description: 'gardening', emoji: '🥕', duration: 60_000 },
+  { description: '研究光线技能', emoji: '📖', duration: 60_000 },
+  { description: '冥想修炼', emoji: '🤔', duration: 60_000 },
+  { description: '宇宙巡逻', emoji: '🌟', duration: 60_000 },
 ];
 
 export const ENGINE_ACTION_DURATION = 30000;
@@ -75,4 +75,4 @@ export const ENGINE_ACTION_DURATION = 30000;
 // Bound the number of pathfinding searches we do per game step.
 export const MAX_PATHFINDS_PER_STEP = 16;
 
-export const DEFAULT_NAME = 'Me';
+export const DEFAULT_NAME = '人类朋友';

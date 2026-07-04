@@ -5,7 +5,7 @@ export default function LoginButton() {
     <SignInButton>
       <button className="button text-white shadow-solid">
         <div className="inline-block bg-clay-700">
-          <span>Log in</span>
+          <span>登录</span>
         </div>
       </button>
     </SignInButton>
