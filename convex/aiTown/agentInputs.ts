@@ -94,17 +94,19 @@ export const agentInputs = {
       }
       const conversationId = parseGameId('conversations', args.conversationId);
       const conversation = game.world.conversations.get(conversationId);
-      if (!conversation) {
-        throw new Error(`Couldn't find conversation: ${conversationId}`);
+      // Operation may have timed out while the LLM was still running. Still apply
+      // the message / leave side effects so we don't get stuck in farewell loops.
+      if (agent.inProgressOperation?.operationId === args.operationId) {
+        delete agent.inProgressOperation;
+      } else {
+        console.debug(
+          `Agent ${agentId} completing message op ${args.operationId} after timeout or supersession`,
+        );
       }
-      if (
-        !agent.inProgressOperation ||
-        agent.inProgressOperation.operationId !== args.operationId
-      ) {
-        console.debug(`Agent ${agentId} wasn't sending a message ${args.operationId}`);
+      // Conversation may already have ended (other participant left first).
+      if (!conversation) {
         return null;
       }
-      delete agent.inProgressOperation;
       conversationInputs.finishSendingMessage.handler(game, now, {
         playerId: agent.playerId,
         conversationId: args.conversationId,

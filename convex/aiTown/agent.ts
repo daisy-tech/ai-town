@@ -190,6 +190,14 @@ export class Agent {
         }
         // See if the conversation has been going on too long and decide to leave.
         const tooLongDeadline = started + MAX_CONVERSATION_DURATION;
+        // Hard cap: if we already tried to farewell but are still here (e.g. timed-out
+        // leave ops), exit immediately without another LLM call.
+        const hardMessageCap = MAX_CONVERSATION_MESSAGES + 2;
+        if (conversation.numMessages > hardMessageCap) {
+          console.log(`${player.id} force-leaving oversized conversation ${conversation.id}`);
+          conversation.leave(game, now, player);
+          return;
+        }
         if (tooLongDeadline < now || conversation.numMessages > MAX_CONVERSATION_MESSAGES) {
           console.log(`${player.id} leaving conversation with ${otherPlayer.id}.`);
           const messageUuid = crypto.randomUUID();

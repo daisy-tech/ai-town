@@ -10,6 +10,17 @@ import { NUM_MEMORIES_TO_SEARCH } from '../constants';
 
 const selfInternal = internal.agent.conversation;
 
+/** Shared style rules so agents sound like people chatting, not fanfic RP. */
+const DIALOGUE_STYLE_RULES = [
+  `说话要自然、口语化，像真人当面聊天，不要写成小说或剧本。`,
+  `禁止使用*星号动作描写*、括号旁白、舞台指示或表情符号堆砌。`,
+  `不要每句都重复口头禅或固定句式；偶尔提一次即可。`,
+  `每次只说一两句，控制在80个汉字以内。`,
+];
+
+/** Only keep the latest turns so the model doesn't imitate long farewell loops. */
+const MAX_PROMPT_MESSAGES = 6;
+
 export async function startConversationMessage(
   ctx: ActionCtx,
   worldId: Id<'worlds'>,
@@ -43,15 +54,14 @@ export async function startConversationMessage(
   );
   const prompt = [
     `你是${player.name}，你刚刚开始和${otherPlayer.name}对话。`,
-    `请用中文进行对话。`,
+    `请用中文打招呼，可以简单寒暄或提起近况。`,
+    ...DIALOGUE_STYLE_RULES,
   ];
   prompt.push(...agentPrompts(otherPlayer, agent, otherAgent ?? null));
   prompt.push(...previousConversationPrompt(otherPlayer, lastConversation));
   prompt.push(...relatedMemoriesPrompt(memories));
   if (memoryWithOtherPlayer) {
-    prompt.push(
-      `确保在你的问候中加入一些关于之前对话的细节或问题。`,
-    );
+    prompt.push(`如果记得以前聊过，可以自然提一句，不要生硬复述。`);
   }
   const lastPrompt = `${player.name}对${otherPlayer.name}说：`;
   prompt.push(lastPrompt);
@@ -63,7 +73,7 @@ export async function startConversationMessage(
         content: prompt.join('\n'),
       },
     ],
-    max_tokens: 300,
+    max_tokens: 120,
     stop: stopWords(otherPlayer.name, player.name),
   });
   return trimContentPrefx(content, lastPrompt);
@@ -100,16 +110,14 @@ export async function continueConversationMessage(
   );
   const memories = await memory.searchMemories(ctx, player.id as GameId<'players'>, embedding, 3);
   const prompt = [
-    `你是${player.name}，你正在和${otherPlayer.name}进行对话。`,
-    `对话开始于${started.toLocaleString()}。现在是${now.toLocaleString()}。`,
-    `请用中文进行对话。`,
+    `你是${player.name}，你正在和${otherPlayer.name}聊天。`,
+    `对话开始于${started.toLocaleString()}，现在是${now.toLocaleString()}。`,
+    `请用中文回复对方刚才的话，推进话题或自然回应，不要重新打招呼。`,
+    ...DIALOGUE_STYLE_RULES,
   ];
   prompt.push(...agentPrompts(otherPlayer, agent, otherAgent ?? null));
   prompt.push(...relatedMemoriesPrompt(memories));
-  prompt.push(
-    `以下是你和${otherPlayer.name}之间当前的聊天记录。`,
-    `不要再次打招呼。不要过度使用"嘿"这个词。你的回复应该简短，控制在200个字符以内。`,
-  );
+  prompt.push(`下面是最近的对话，请接着说：`);
 
   const llmMessages: LLMMessage[] = [
     {
@@ -129,7 +137,7 @@ export async function continueConversationMessage(
 
   const { content } = await chatCompletion({
     messages: llmMessages,
-    max_tokens: 300,
+    max_tokens: 120,
     stop: stopWords(otherPlayer.name, player.name),
   });
   return trimContentPrefx(content, lastPrompt);
@@ -152,15 +160,13 @@ export async function leaveConversationMessage(
     },
   );
   const prompt = [
-    `你是${player.name}，你正在和${otherPlayer.name}进行对话。`,
-    `你决定离开对话，想礼貌地告诉他们你要离开了。`,
-    `请用中文进行对话。`,
+    `你是${player.name}，你正在和${otherPlayer.name}聊天。`,
+    `你现在必须结束对话并离开。只说一句简短、自然的告别（例如有事要走、下次再聊）。`,
+    `这是最后一句话：不要继续聊正题，不要重复之前已经说过的告别，说完就结束。`,
+    ...DIALOGUE_STYLE_RULES,
   ];
   prompt.push(...agentPrompts(otherPlayer, agent, otherAgent ?? null));
-  prompt.push(
-    `以下是你和${otherPlayer.name}之间当前的聊天记录。`,
-    `你想如何告诉他们你要离开？你的回复应该简短，控制在200个字符以内。`,
-  );
+  prompt.push(`最近几句对话供参考：`);
   const llmMessages: LLMMessage[] = [
     {
       role: 'system',
@@ -172,6 +178,7 @@ export async function leaveConversationMessage(
       player,
       otherPlayer,
       conversation.id as GameId<'conversations'>,
+      4,
     )),
   ];
   const lastPrompt = `${player.name}对${otherPlayer.name}说：`;
@@ -179,7 +186,7 @@ export async function leaveConversationMessage(
 
   const { content } = await chatCompletion({
     messages: llmMessages,
-    max_tokens: 300,
+    max_tokens: 80,
     stop: stopWords(otherPlayer.name, player.name),
   });
   return trimContentPrefx(content, lastPrompt);
@@ -192,11 +199,11 @@ function agentPrompts(
 ): string[] {
   const prompt = [];
   if (agent) {
-    prompt.push(`关于你：${agent.identity}`);
-    prompt.push(`你的对话目标：${agent.plan}`);
+    prompt.push(`你的身份（仅作背景，不要整段背诵）：${agent.identity}`);
+    prompt.push(`你当前在意的事：${agent.plan}`);
   }
   if (otherAgent) {
-    prompt.push(`关于${otherPlayer.name}：${otherAgent.identity}`);
+    prompt.push(`对方是谁（简要了解即可）：${otherAgent.identity}`);
   }
   return prompt;
 }
@@ -235,10 +242,12 @@ async function previousMessages(
   player: { id: string; name: string },
   otherPlayer: { id: string; name: string },
   conversationId: GameId<'conversations'>,
+  limit: number = MAX_PROMPT_MESSAGES,
 ) {
   const llmMessages: LLMMessage[] = [];
   const prevMessages = await ctx.runQuery(api.messages.listMessages, { worldId, conversationId });
-  for (const message of prevMessages) {
+  const recent = prevMessages.slice(-limit);
+  for (const message of recent) {
     const author = message.author === player.id ? player : otherPlayer;
     const recipient = message.author === player.id ? otherPlayer : player;
     llmMessages.push({
