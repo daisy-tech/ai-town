@@ -37,9 +37,11 @@ export async function startConversationMessage(
       conversationId,
     },
   );
+  // Query in Chinese so the embedding lives in the same space as the
+  // (Chinese) memory descriptions.
   const embedding = await embeddingsCache.fetch(
     ctx,
-    `${player.name} is talking to ${otherPlayer.name}`,
+    `我和${otherPlayer.name}之间发生过的事，以及我对${otherPlayer.name}的了解`,
   );
 
   const memories = await memory.searchMemories(
@@ -50,7 +52,9 @@ export async function startConversationMessage(
   );
 
   const memoryWithOtherPlayer = memories.find(
-    (m) => m.data.type === 'conversation' && m.data.playerIds.includes(otherPlayerId),
+    (m) =>
+      (m.data.type === 'conversation' && m.data.playerIds.includes(otherPlayerId)) ||
+      (m.data.type === 'relationship' && m.data.playerId === otherPlayerId),
   );
   const prompt = [
     `你是${player.name}，你刚刚开始和${otherPlayer.name}对话。`,
@@ -104,10 +108,7 @@ export async function continueConversationMessage(
   );
   const now = Date.now();
   const started = new Date(conversation.created);
-  const embedding = await embeddingsCache.fetch(
-    ctx,
-    `What do you think about ${otherPlayer.name}?`,
-  );
+  const embedding = await embeddingsCache.fetch(ctx, `我对${otherPlayer.name}的了解和看法`);
   const memories = await memory.searchMemories(ctx, player.id as GameId<'players'>, embedding, 3);
   const prompt = [
     `你是${player.name}，你正在和${otherPlayer.name}聊天。`,
@@ -225,13 +226,28 @@ function previousConversationPrompt(
   return prompt;
 }
 
+// Cap the total number of characters of memories injected into a prompt so a
+// few verbose (e.g. legacy) memories can't blow up the context.
+const MAX_MEMORY_PROMPT_CHARS = 300;
+
 function relatedMemoriesPrompt(memories: memory.Memory[]): string[] {
   const prompt = [];
-  if (memories.length > 0) {
-    prompt.push(`以下是一些相关的记忆，按相关性降序排列：`);
-    for (const memory of memories) {
-      prompt.push(' - ' + memory.description);
+  const seen = new Set<string>();
+  let budget = MAX_MEMORY_PROMPT_CHARS;
+  for (const memory of memories) {
+    const description = memory.description.trim();
+    if (seen.has(description)) {
+      continue;
     }
+    if (description.length > budget) {
+      continue;
+    }
+    seen.add(description);
+    budget -= description.length;
+    prompt.push(' - ' + description);
+  }
+  if (prompt.length > 0) {
+    prompt.unshift(`以下是一些相关的记忆，按相关性降序排列：`);
   }
   return prompt;
 }

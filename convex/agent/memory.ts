@@ -13,6 +13,8 @@ export const MEMORY_ACCESS_THROTTLE = 300_000; // In ms
 // We fetch 10x the number of memories by relevance, to have more candidates
 // for sorting by relevance + recency + importance.
 const MEMORY_OVERFETCH = 10;
+// Reflect after this many new event/relationship memories accumulate.
+const MEMORIES_PER_REFLECTION = 10;
 const selfInternal = internal.agent.memory;
 
 export type Memory = Doc<'memories'>;
@@ -42,7 +44,14 @@ export async function rememberConversation(
   const llmMessages: LLMMessage[] = [
     {
       role: 'user',
-      content: `你是${player.name}，你刚刚和${otherPlayer.name}结束了一次对话。请用中文从${player.name}的视角总结这次对话，使用第一人称代词如"我"，并说明你是否喜欢或不喜欢这次互动。`,
+      content: [
+        `你是${player.name}，你刚刚和${otherPlayer.name}结束了一次对话。`,
+        `请用中文、以第一人称（"我"）总结这次对话里值得记住的内容：新了解到的信息、达成的约定、对方的状态或情绪、你的感受。`,
+        `要求：`,
+        `- 总结中要提到${otherPlayer.name}的名字。`,
+        `- 不超过100个汉字。`,
+        `- 只写值得记住的要点，不要逐句复述对话过程，不要写"我们先聊了…然后…"这样的流水账。`,
+      ].join('\n'),
     },
   ];
   const authors = new Set<GameId<'players'>>();
@@ -58,11 +67,9 @@ export async function rememberConversation(
   llmMessages.push({ role: 'user', content: '总结：' });
   const { content } = await chatCompletion({
     messages: llmMessages,
-    max_tokens: 500,
+    max_tokens: 200,
   });
-  const description = `与${otherPlayer.name}在${new Date(
-    data.conversation._creationTime,
-  ).toLocaleString()}的对话：${content}`;
+  const description = content.trim();
   const importance = await calculateImportance(description);
   const { embedding } = await fetchEmbedding(description);
   authors.delete(player.id as GameId<'players'>);
@@ -79,8 +86,83 @@ export async function rememberConversation(
     },
     embedding,
   });
+  await rememberRelationshipFacts(ctx, agentId, player, otherPlayer, messages);
   await reflectOnMemories(ctx, worldId, playerId);
   return description;
+}
+
+// Extract up to 3 standalone facts the agent learned about the other player
+// and store them as "relationship" memories. These short semantic memories
+// are cheap to retrieve and inject into future prompts.
+async function rememberRelationshipFacts(
+  ctx: ActionCtx,
+  agentId: GameId<'agents'>,
+  player: { id: string; name: string },
+  otherPlayer: { id: string; name: string },
+  messages: Doc<'messages'>[],
+) {
+  const llmMessages: LLMMessage[] = [
+    {
+      role: 'user',
+      content: [
+        `你是${player.name}。下面是你和${otherPlayer.name}的对话记录。`,
+        `请从中提取你新了解到的、关于${otherPlayer.name}的独立事实（例如TA的近况、喜好、计划、担忧）。`,
+        `要求：`,
+        `- 最多3条；如果没有值得记住的事实，返回空数组。`,
+        `- 每条是一个完整的中文短句，不超过40个汉字，并包含${otherPlayer.name}的名字。`,
+        `- 只输出JSON字符串数组，例如：["${otherPlayer.name}最近在训练新技能"]，不要输出其他内容。`,
+      ].join('\n'),
+    },
+  ];
+  for (const message of messages) {
+    const author = message.author === player.id ? player : otherPlayer;
+    const recipient = message.author === player.id ? otherPlayer : player;
+    llmMessages.push({
+      role: 'user',
+      content: `${author.name}对${recipient.name}说：${message.text}`,
+    });
+  }
+  llmMessages.push({ role: 'user', content: '事实列表（JSON数组）：' });
+  const { content } = await chatCompletion({
+    messages: llmMessages,
+    temperature: 0.0,
+    max_tokens: 300,
+  });
+  let facts: string[];
+  try {
+    const cleaned = content
+      .trim()
+      .replace(/^```(json)?/i, '')
+      .replace(/```$/, '')
+      .trim();
+    const parsed = JSON.parse(cleaned);
+    if (!Array.isArray(parsed)) {
+      throw new Error(`Expected an array, got: ${cleaned}`);
+    }
+    facts = parsed.filter((f): f is string => typeof f === 'string' && f.trim().length > 0);
+  } catch (e) {
+    console.debug(`Couldn't parse relationship facts, skipping: ${content}`, e);
+    return;
+  }
+  const lastMessageTime = messages[messages.length - 1]._creationTime;
+  for (const fact of facts.slice(0, 3)) {
+    const description = fact.trim();
+    const importance = await calculateImportance(description);
+    const { embedding } = await fetchEmbedding(description);
+    console.debug('添加关系记忆...', description);
+    await ctx.runMutation(selfInternal.insertMemory, {
+      agentId,
+      playerId: player.id as GameId<'players'>,
+      description,
+      importance,
+      lastAccess: lastMessageTime,
+      data: {
+        type: 'relationship',
+        playerId: otherPlayer.id as GameId<'players'>,
+      },
+      embedding,
+    });
+  }
 }
 
 export const loadConversation = internalQuery({
@@ -246,9 +328,9 @@ async function calculateImportance(description: string) {
     messages: [
       {
         role: 'user',
-        content: `On the scale of 0 to 9, where 0 is purely mundane (e.g., brushing teeth, making bed) and 9 is extremely poignant (e.g., a break up, college acceptance), rate the likely poignancy of the following piece of memory.
-      Memory: ${description}
-      Answer on a scale of 0 to 9. Respond with number only, e.g. "5"`,
+        content: `请评估下面这条记忆的重要程度，范围0到9：0表示完全日常琐事（如刷牙、整理床铺），9表示极其重大（如分手、重大变故、重要承诺）。
+      记忆：${description}
+      只回答一个0到9的数字，例如"5"。`,
       },
     ],
     temperature: 0.0,
@@ -334,22 +416,24 @@ async function reflectOnMemories(
     },
   );
 
-  // should only reflect if lastest 100 items have importance score of >500
-  const sumOfImportanceScore = memories
-    .filter((m) => m._creationTime > (lastReflectionTs ?? 0))
-    .reduce((acc, curr) => acc + curr.importance, 0);
-  const shouldReflect = sumOfImportanceScore > 500;
+  // Reflect after accumulating enough new (non-reflection) memories since the
+  // last reflection.
+  const newMemories = memories.filter(
+    (m) => m._creationTime > (lastReflectionTs ?? 0) && m.data.type !== 'reflection',
+  );
+  const shouldReflect = newMemories.length >= MEMORIES_PER_REFLECTION;
 
   if (!shouldReflect) {
     return false;
   }
-  console.debug('sum of importance score = ', sumOfImportanceScore);
+  console.debug(`${newMemories.length} new memories since last reflection`);
   console.debug('反思中...');
   const prompt = ['[不要使用散文]', '[仅输出JSON]', `你是${name}，关于你的陈述：`];
   memories.forEach((m, idx) => {
     prompt.push(`陈述${idx}：${m.description}`);
   });
   prompt.push('你能从以上陈述中推断出哪3条高层次的见解？');
+  prompt.push('每条见解是一个完整的中文单句，不超过50个汉字。');
   prompt.push(
     '以JSON格式返回，其中键是对你的见解有贡献的输入陈述列表，值是你的见解。使响应可被Typescript的JSON.parse()函数解析。不要转义字符或在响应中包含"\\n"或空格。',
   );
