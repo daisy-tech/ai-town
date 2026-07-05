@@ -1,4 +1,5 @@
-import { useQuery } from 'convex/react';
+import { useMutation, useQuery } from 'convex/react';
+import { useEffect, useState } from 'react';
 import { api } from '../../convex/_generated/api';
 import { Id } from '../../convex/_generated/dataModel';
 import closeImg from '../../assets/close.svg';
@@ -9,6 +10,7 @@ import { useSendInput } from '../hooks/sendInput';
 import { Player } from '../../convex/aiTown/player';
 import { GameId } from '../../convex/aiTown/ids';
 import { ServerGame } from '../hooks/serverGame';
+import JoinDialog, { savedPlayerName, useJoinWorld } from './JoinDialog';
 
 export default function PlayerDetails({
   worldId,
@@ -57,6 +59,43 @@ export default function PlayerDetails({
   const acceptInvite = useSendInput(engineId, 'acceptInvite');
   const rejectInvite = useSendInput(engineId, 'rejectInvite');
   const leaveConversation = useSendInput(engineId, 'leaveConversation');
+
+  // "开始对话" for visitors who haven't joined yet: join with the saved name
+  // (asking only on first use), then automatically send the invite once our
+  // player exists in the world.
+  const joinWorld = useJoinWorld();
+  const [joinDialogOpen, setJoinDialogOpen] = useState(false);
+  const [pendingInvite, setPendingInvite] = useState<GameId<'players'>>();
+  const humanPlayerId = humanPlayer?.id;
+  useEffect(() => {
+    if (!pendingInvite || !humanPlayerId) {
+      return;
+    }
+    setPendingInvite(undefined);
+    void toastOnError(
+      startConversation({ playerId: humanPlayerId, invitee: pendingInvite, remote: true }),
+    );
+  }, [pendingInvite, humanPlayerId]);
+  const leaveWorld = useMutation(api.world.leaveWorld);
+  const onLeaveWorld = () => {
+    console.log(`Leaving game for player ${humanPlayerId}`);
+    void leaveWorld({ worldId });
+    setSelectedElement(undefined);
+  };
+  const joinAndInvite = (invitee: GameId<'players'>) => {
+    const name = savedPlayerName();
+    if (name) {
+      void joinWorld(worldId, name).then((ok) => {
+        if (ok) {
+          setPendingInvite(invitee);
+        } else {
+          setJoinDialogOpen(true);
+        }
+      });
+    } else {
+      setJoinDialogOpen(true);
+    }
+  };
 
   if (!playerId) {
     return (
@@ -155,12 +194,33 @@ export default function PlayerDetails({
           </h2>
         </a>
       </div>
-      {!humanPlayer && !isMe && (
-        <div className="box mt-6">
-          <p className="bg-brown-700 p-2 text-base text-center leading-tight">
-            想要对话？先在「设置」中点击「加入互动」。
-          </p>
-        </div>
+      {isMe && (
+        <a
+          className="mt-6 button text-white shadow-solid text-xl cursor-pointer pointer-events-auto"
+          onClick={onLeaveWorld}
+        >
+          <div className="h-full bg-clay-700 text-center">
+            <span>离开光之国</span>
+          </div>
+        </a>
+      )}
+      {!humanPlayer && !isMe && !playerConversation && (
+        <>
+          <JoinDialog
+            open={joinDialogOpen}
+            onClose={() => setJoinDialogOpen(false)}
+            worldId={worldId}
+            onJoined={() => setPendingInvite(playerId)}
+          />
+          <a
+            className="mt-6 button text-white shadow-solid text-xl cursor-pointer pointer-events-auto"
+            onClick={() => joinAndInvite(playerId!)}
+          >
+            <div className="h-full bg-clay-700 text-center">
+              <span>开始对话</span>
+            </div>
+          </a>
+        </>
       )}
       {canInvite && (
         <a

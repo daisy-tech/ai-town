@@ -4,6 +4,7 @@ import starImg from '../../../assets/star.svg';
 import helpImg from '../../../assets/help.svg';
 import Button from '../buttons/Button';
 import InteractButton from '../buttons/InteractButton';
+import RenameButton from '../buttons/RenameButton';
 import MusicButton from '../buttons/MusicButton';
 import FreezeButton from '../FreezeButton';
 import { MAX_HUMAN_PLAYERS } from '../../../convex/constants';
@@ -48,6 +49,7 @@ export default function SettingsTab() {
       </div>
       <div className="flex flex-col items-start gap-4">
         <InteractButton />
+        <RenameButton />
         <MusicButton />
         <FreezeButton />
         <Button imgUrl={helpImg} onClick={() => setHelpModalOpen(true)}>

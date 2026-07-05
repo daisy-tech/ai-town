@@ -8,6 +8,7 @@ import {
   HUMAN_IDLE_TOO_LONG,
   MAX_HUMAN_PLAYERS,
   MAX_PATHFINDS_PER_STEP,
+  MAX_PLAYER_NAME_LENGTH,
 } from '../constants';
 import { pointsEqual, pathPosition } from '../util/geometry';
 import { Game } from './game';
@@ -304,6 +305,43 @@ export const playerInputs = {
       } else {
         stopPlayer(player);
       }
+      return null;
+    },
+  }),
+  // Rename a human player. Agents keep their configured names.
+  changeName: inputHandler({
+    args: {
+      playerId,
+      name: v.string(),
+    },
+    handler: (game, now, args) => {
+      const playerId = parseGameId('players', args.playerId);
+      const player = game.world.players.get(playerId);
+      if (!player) {
+        throw new Error(`Invalid player ID ${playerId}`);
+      }
+      if (!player.human) {
+        throw new Error(`只有人类玩家可以改名`);
+      }
+      const name = args.name.trim();
+      if (!name) {
+        throw new Error(`名字不能为空`);
+      }
+      if (name.length > MAX_PLAYER_NAME_LENGTH) {
+        throw new Error(`名字最长${MAX_PLAYER_NAME_LENGTH}个字符`);
+      }
+      for (const [otherId, description] of game.playerDescriptions.entries()) {
+        if (otherId !== playerId && game.world.players.has(otherId) && description.name === name) {
+          throw new Error(`名字"${name}"已被使用，换一个吧`);
+        }
+      }
+      const description = game.playerDescriptions.get(playerId);
+      if (!description) {
+        throw new Error(`No description for player ${playerId}`);
+      }
+      description.name = name;
+      description.description = `${name}是来到光之国做客的人类玩家`;
+      game.descriptionsModified = true;
       return null;
     },
   }),

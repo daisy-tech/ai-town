@@ -20,7 +20,7 @@ type TabId = 'settings' | 'characters' | 'chats';
 
 const TABS: { id: TabId; label: string }[] = [
   { id: 'characters', label: '人物' },
-  { id: 'chats', label: '聊天' },
+  { id: 'chats', label: '对话历史' },
   { id: 'settings', label: '设置' },
 ];
 

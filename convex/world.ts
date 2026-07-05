@@ -6,6 +6,7 @@ import {
   DEFAULT_NAME,
   ENGINE_ACTION_DURATION,
   IDLE_WORLD_TIMEOUT,
+  MAX_PLAYER_NAME_LENGTH,
   WORLD_HEARTBEAT_INTERVAL,
 } from './constants';
 import { playerId } from './aiTown/ids';
@@ -111,29 +112,34 @@ export const userStatus = query({
 export const joinWorld = mutation({
   args: {
     worldId: v.id('worlds'),
+    // Optional display name; falls back to DEFAULT_NAME. The token identifier
+    // stays constant since there's no auth: it only marks "the human player".
+    name: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    // const identity = await ctx.auth.getUserIdentity();
-    // if (!identity) {
-    //   throw new ConvexError(`Not logged in`);
-    // }
-    // const name =
-    //   identity.givenName || identity.nickname || (identity.email && identity.email.split('@')[0]);
-    const name = DEFAULT_NAME;
-
-    // if (!name) {
-    //   throw new ConvexError(`Missing name on ${JSON.stringify(identity)}`);
-    // }
+    const name = (args.name ?? '').trim() || DEFAULT_NAME;
+    if (name.length > MAX_PLAYER_NAME_LENGTH) {
+      throw new ConvexError(`名字最长${MAX_PLAYER_NAME_LENGTH}个字符`);
+    }
     const world = await ctx.db.get(args.worldId);
     if (!world) {
       throw new ConvexError(`Invalid world ID: ${args.worldId}`);
     }
-    // const { tokenIdentifier } = identity;
+    // Reject names that clash with a character currently in the world so
+    // agent memories don't conflate two identities. Only check active
+    // players: the descriptions table keeps stale rows for departed ones.
+    const playerDescriptions = await ctx.db
+      .query('playerDescriptions')
+      .withIndex('worldId', (q) => q.eq('worldId', world._id))
+      .collect();
+    const activePlayerIds = new Set(world.players.map((p) => p.id));
+    if (playerDescriptions.some((d) => activePlayerIds.has(d.playerId) && d.name === name)) {
+      throw new ConvexError(`名字"${name}"已被使用，换一个吧`);
+    }
     return await insertInput(ctx, world._id, 'join', {
       name,
       character: characters[Math.floor(Math.random() * characters.length)].name,
-      description: `${DEFAULT_NAME} is a human player`,
-      // description: `${identity.givenName} is a human player`,
+      description: `${name}是来到光之国做客的人类玩家`,
       tokenIdentifier: DEFAULT_NAME,
     });
   },

@@ -104,7 +104,7 @@ export default function ChatsTab({
     <div className="flex flex-col gap-3">
       <div className="box">
         <h2 className="bg-brown-700 p-2 font-display text-2xl tracking-wider shadow-solid text-center">
-          聊天记录
+          对话历史
         </h2>
       </div>
       {activeConversations.length > 0 && (
