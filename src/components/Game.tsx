@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import PixiGame from './PixiGame.tsx';
+import { Viewport } from 'pixi-viewport';
 
 import { useElementSize } from 'usehooks-ts';
 import { Stage } from '@pixi/react';
@@ -47,6 +48,20 @@ export default function Game() {
   const { historicalTime, timeManager } = useHistoricalTime(worldState?.engine);
 
   const scrollViewRef = useRef<HTMLDivElement>(null);
+  const viewportRef = useRef<Viewport | undefined>();
+
+  const zoomBy = (factor: number) => {
+    const viewport = viewportRef.current;
+    if (!viewport) {
+      return;
+    }
+    const clampZoom = (viewport.plugins.get('clamp-zoom') as any)?.options;
+    let scale = viewport.scale.x * factor;
+    if (clampZoom) {
+      scale = Math.max(clampZoom.minScale ?? scale, Math.min(clampZoom.maxScale ?? scale, scale));
+    }
+    viewport.animate({ scale, time: 200 });
+  };
 
   // If the human player is in a conversation, make sure the panel is open on
   // the characters tab so they can see and answer messages.
@@ -95,6 +110,7 @@ https://github.com/michalochman/react-pixi-fiber/issues/145#issuecomment-5315492
                   height={height}
                   historicalTime={historicalTime}
                   setSelectedElement={onSelectElement}
+                  externalViewportRef={viewportRef}
                 />
               </ConvexProvider>
             </Stage>
@@ -109,6 +125,23 @@ https://github.com/michalochman/react-pixi-fiber/issues/145#issuecomment-5315492
               </div>
             </button>
           )}
+          {/* Zoom controls */}
+          <div className="absolute bottom-3 right-3 z-10 flex flex-col gap-2">
+            <button
+              className="pointer-events-auto button text-white shadow-solid text-2xl"
+              title="放大"
+              onClick={() => zoomBy(1.3)}
+            >
+              <div className="w-10 h-10 flex items-center justify-center bg-clay-700">＋</div>
+            </button>
+            <button
+              className="pointer-events-auto button text-white shadow-solid text-2xl"
+              title="缩小"
+              onClick={() => zoomBy(1 / 1.3)}
+            >
+              <div className="w-10 h-10 flex items-center justify-center bg-clay-700">－</div>
+            </button>
+          </div>
         </div>
         {/* Side panel */}
         {panelOpen && (

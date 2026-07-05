@@ -23,10 +23,13 @@ export const PixiGame = (props: {
   width: number;
   height: number;
   setSelectedElement: SelectElement;
+  // Optional external ref so the parent can control the viewport (e.g. zoom buttons).
+  externalViewportRef?: React.MutableRefObject<Viewport | undefined>;
 }) => {
   // PIXI setup.
   const pixiApp = useApp();
-  const viewportRef = useRef<Viewport | undefined>();
+  const localViewportRef = useRef<Viewport | undefined>();
+  const viewportRef = props.externalViewportRef ?? localViewportRef;
 
   const humanTokenIdentifier = useQuery(api.world.userStatus, { worldId: props.worldId }) ?? null;
   const humanPlayerId = [...props.game.world.players.values()].find(

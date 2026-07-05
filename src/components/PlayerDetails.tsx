@@ -11,6 +11,7 @@ import { Player } from '../../convex/aiTown/player';
 import { GameId } from '../../convex/aiTown/ids';
 import { ServerGame } from '../hooks/serverGame';
 import JoinDialog, { savedPlayerName, useJoinWorld } from './JoinDialog';
+import { characters } from '../../data/characters';
 
 export default function PlayerDetails({
   worldId,
@@ -177,6 +178,9 @@ export default function PlayerDetails({
   //   [...inflightInputs.values()].find((i) => i.name === inputName) ? ' opacity-50' : '';
 
   const pendingSuffix = (s: string) => '';
+  const portraitUrl =
+    playerDescription &&
+    characters.find((c) => c.name === playerDescription.character)?.portraitUrl;
   return (
     <>
       <div className="flex gap-4">
@@ -194,6 +198,18 @@ export default function PlayerDetails({
           </h2>
         </a>
       </div>
+      {portraitUrl && (
+        <div className="box mt-4">
+          <div className="bg-brown-900 flex justify-center p-3">
+            <img
+              className="w-32 h-32 sm:w-40 sm:h-40"
+              style={{ imageRendering: 'pixelated' }}
+              src={portraitUrl}
+              alt={playerDescription?.name}
+            />
+          </div>
+        </div>
+      )}
       {isMe && (
         <a
           className="mt-6 button text-white shadow-solid text-xl cursor-pointer pointer-events-auto"
@@ -221,6 +237,13 @@ export default function PlayerDetails({
             </div>
           </a>
         </>
+      )}
+      {!isMe && playerConversation && !sameConversation && (
+        <a className="mt-6 button text-white shadow-solid text-xl pointer-events-auto opacity-50 cursor-not-allowed">
+          <div className="h-full bg-clay-700 text-center">
+            <span>正在与他人对话中...</span>
+          </div>
+        </a>
       )}
       {canInvite && (
         <a

@@ -136,9 +136,12 @@ export const joinWorld = mutation({
     if (playerDescriptions.some((d) => activePlayerIds.has(d.playerId) && d.name === name)) {
       throw new ConvexError(`名字"${name}"已被使用，换一个吧`);
     }
+    // Humans use the original light-warrior looks (f6-f8) so they never
+    // share a sprite with one of the named Ultraman agents.
+    const humanCharacters = characters.filter((c) => ['f6', 'f7', 'f8'].includes(c.name));
     return await insertInput(ctx, world._id, 'join', {
       name,
-      character: characters[Math.floor(Math.random() * characters.length)].name,
+      character: humanCharacters[Math.floor(Math.random() * humanCharacters.length)].name,
       description: `${name}是来到光之国做客的人类玩家`,
       tokenIdentifier: DEFAULT_NAME,
     });

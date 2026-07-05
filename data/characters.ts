@@ -1,11 +1,5 @@
-import { data as f1SpritesheetData } from './spritesheets/f1';
-import { data as f2SpritesheetData } from './spritesheets/f2';
-import { data as f3SpritesheetData } from './spritesheets/f3';
-import { data as f4SpritesheetData } from './spritesheets/f4';
-import { data as f5SpritesheetData } from './spritesheets/f5';
-import { data as f6SpritesheetData } from './spritesheets/f6';
-import { data as f7SpritesheetData } from './spritesheets/f7';
-import { data as f8SpritesheetData } from './spritesheets/f8';
+import { data as ultraman48SpritesheetData } from './spritesheets/ultraman48';
+import { SpritesheetData } from './spritesheets/types';
 
 export const Descriptions = [
   {
@@ -45,53 +39,73 @@ export const Descriptions = [
   },
 ];
 
-export const characters = [
+export const characters: {
+  name: string;
+  textureUrl: string;
+  spritesheetData: SpritesheetData;
+  // 可选：人物详情页展示的大头照。
+  portraitUrl?: string;
+  speed: number;
+}[] = [
   {
+    // 迪迦奥特曼（致敬风格）
     name: 'f1',
-    textureUrl: '/ai-town/assets/32x32folk.png',
-    spritesheetData: f1SpritesheetData,
+    textureUrl: '/ai-town/assets/sprites/tiga.png',
+    spritesheetData: ultraman48SpritesheetData,
+    portraitUrl: '/ai-town/assets/sprites/tiga-portrait.png',
     speed: 0.1,
   },
   {
+    // 赛罗奥特曼（致敬风格）
     name: 'f2',
-    textureUrl: '/ai-town/assets/32x32folk.png',
-    spritesheetData: f2SpritesheetData,
+    textureUrl: '/ai-town/assets/sprites/zero.png',
+    spritesheetData: ultraman48SpritesheetData,
+    portraitUrl: '/ai-town/assets/sprites/zero-portrait.png',
     speed: 0.1,
   },
   {
+    // 梦比优斯奥特曼（致敬风格）
     name: 'f3',
-    textureUrl: '/ai-town/assets/32x32folk.png',
-    spritesheetData: f3SpritesheetData,
+    textureUrl: '/ai-town/assets/sprites/mebius.png',
+    spritesheetData: ultraman48SpritesheetData,
+    portraitUrl: '/ai-town/assets/sprites/mebius-portrait.png',
     speed: 0.1,
   },
   {
+    // 艾斯奥特曼（致敬风格）
     name: 'f4',
-    textureUrl: '/ai-town/assets/32x32folk.png',
-    spritesheetData: f4SpritesheetData,
+    textureUrl: '/ai-town/assets/sprites/ace.png',
+    spritesheetData: ultraman48SpritesheetData,
+    portraitUrl: '/ai-town/assets/sprites/ace-portrait.png',
     speed: 0.1,
   },
   {
+    // 泰罗奥特曼（致敬风格）
     name: 'f5',
-    textureUrl: '/ai-town/assets/32x32folk.png',
-    spritesheetData: f5SpritesheetData,
+    textureUrl: '/ai-town/assets/sprites/taro.png',
+    spritesheetData: ultraman48SpritesheetData,
+    portraitUrl: '/ai-town/assets/sprites/taro-portrait.png',
     speed: 0.1,
   },
   {
+    // 原创光之战士（蓝银）：人类玩家随机形象
     name: 'f6',
-    textureUrl: '/ai-town/assets/32x32folk.png',
-    spritesheetData: f6SpritesheetData,
+    textureUrl: '/ai-town/assets/sprites/warrior1.png',
+    spritesheetData: ultraman48SpritesheetData,
     speed: 0.1,
   },
   {
+    // 原创光之战士（橙银）：人类玩家随机形象
     name: 'f7',
-    textureUrl: '/ai-town/assets/32x32folk.png',
-    spritesheetData: f7SpritesheetData,
+    textureUrl: '/ai-town/assets/sprites/warrior2.png',
+    spritesheetData: ultraman48SpritesheetData,
     speed: 0.1,
   },
   {
+    // 原创光之战士（紫银）：人类玩家随机形象
     name: 'f8',
-    textureUrl: '/ai-town/assets/32x32folk.png',
-    spritesheetData: f8SpritesheetData,
+    textureUrl: '/ai-town/assets/sprites/warrior3.png',
+    spritesheetData: ultraman48SpritesheetData,
     speed: 0.1,
   },
 ];
