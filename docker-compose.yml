@@ -4,7 +4,7 @@ services:
   frontend:
     build: .
     ports:
-      - '5173:5173'
+      - '5180:5180'
     volumes:
       - .:/usr/src/app
       - /usr/src/app/node_modules

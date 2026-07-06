@@ -54,3 +54,11 @@ data/players.json
 *.backup
 .DS_Store
 
+# macOS AppleDouble metadata (NFS/SMB shares)
+._*
+**/._*
+
+# runtime logs
+backend.log
+frontend.log
+

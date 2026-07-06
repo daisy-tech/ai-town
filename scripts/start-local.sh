@@ -11,6 +11,17 @@ if [ -f .env.llm ]; then
   set +a
 fi
 
+# 读取 .env（部署到服务器时可在其中设置 URL_BASE=http://<公网IP>）
+if [ -f .env ]; then
+  set -a
+  # shellcheck disable=SC1091
+  source .env
+  set +a
+fi
+
+# 浏览器访问 Convex 后端的地址：本机默认 127.0.0.1，服务器上用 URL_BASE
+PUBLIC_CONVEX_URL="${URL_BASE:-http://127.0.0.1}:3210"
+
 API_URL="${LLM_API_URL:-https://dashscope.aliyuncs.com/compatible-mode}"
 MODEL="${LLM_MODEL:-qwen-plus}"
 EMBEDDING_MODEL="${LLM_EMBEDDING_MODEL:-text-embedding-v3}"
@@ -49,7 +60,7 @@ cat > .env.local <<EOF
 # 自托管 Convex
 CONVEX_SELF_HOSTED_URL="http://127.0.0.1:3210"
 CONVEX_SELF_HOSTED_ADMIN_KEY="${ADMIN_KEY}"
-VITE_CONVEX_URL=http://127.0.0.1:3210
+VITE_CONVEX_URL=${PUBLIC_CONVEX_URL}
 
 BACKEND_TYPE=local
 LOCAL_DATA_DIR=./data
@@ -76,4 +87,4 @@ echo "配置完成。启动："
 echo "  npm run dev:backend"
 echo "  npm run dev:frontend"
 echo ""
-echo "打开 http://localhost:5173/ai-town"
+echo "打开 http://localhost:5180/ai-town"
