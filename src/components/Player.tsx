@@ -69,6 +69,7 @@ export const Player = ({
       <Character
         x={historicalLocation.x * tileDim + tileDim / 2}
         y={historicalLocation.y * tileDim + tileDim / 2}
+        zIndex={1000 + historicalLocation.y * tileDim + tileDim / 2}
         orientation={orientationDegrees(historicalFacing)}
         isMoving={historicalLocation.speed > 0}
         isThinking={isThinking}

@@ -101,7 +101,7 @@ export default function PlayerDetails({
   if (!playerId) {
     return (
       <div className="h-full text-xl flex text-center items-center p-4">
-        点击地图上的奥特战士或人物列表查看详情
+        点击地图上的宠物伙伴或人物列表查看详情
       </div>
     );
   }
@@ -216,7 +216,7 @@ export default function PlayerDetails({
           onClick={onLeaveWorld}
         >
           <div className="h-full bg-clay-700 text-center">
-            <span>离开光之国</span>
+            <span>离开小镇</span>
           </div>
         </a>
       )}

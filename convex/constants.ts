@@ -65,9 +65,13 @@ export const DELETE_BATCH_SIZE = 64;
 export const HUMAN_IDLE_TOO_LONG = 5 * 60 * 1000;
 
 export const ACTIVITIES = [
-  { description: '研究光线技能', emoji: '📖', duration: 60_000 },
-  { description: '冥想修炼', emoji: '🤔', duration: 60_000 },
-  { description: '宇宙巡逻', emoji: '🌟', duration: 60_000 },
+  { description: '安静地看绘本', emoji: '📖', duration: 60_000 },
+  { description: '写今天的日记', emoji: '✏️', duration: 60_000 },
+  { description: '给花园浇水', emoji: '🌼', duration: 60_000 },
+  { description: '收集心愿叶', emoji: '🍃', duration: 60_000 },
+  { description: '练习画画', emoji: '🎨', duration: 60_000 },
+  { description: '在草地上打盹', emoji: '😴', duration: 60_000 },
+  { description: '哼着歌散步', emoji: '🎵', duration: 60_000 },
 ];
 
 export const ENGINE_ACTION_DURATION = 30000;

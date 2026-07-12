@@ -1,6 +1,6 @@
 import { SpritesheetData } from './types';
 
-// 奥特曼（致敬风格）角色共用的帧定义：每人一张独立贴图，48x48 帧，3帧×4方向。
+// 角色共用的帧定义：每个角色一张独立贴图，48x48 帧，3帧×4方向。
 const CELL = 48;
 
 function frame(col: number, row: number) {

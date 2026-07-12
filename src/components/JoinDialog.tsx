@@ -100,7 +100,7 @@ export default function JoinDialog({
     >
       <div className="font-body flex flex-col gap-4">
         <h1 className="text-center text-4xl font-bold font-display game-title">取个名字</h1>
-        <p className="text-center">奥特战士们会用这个名字称呼你、记住你。</p>
+        <p className="text-center">宠物伙伴们会用这个名字称呼你、记住你。</p>
         <input
           className="w-full p-2 text-xl text-black text-center outline-none"
           value={nameInput}

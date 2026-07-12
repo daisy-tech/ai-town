@@ -30,6 +30,10 @@ export default PixiComponent('Viewport', {
     if (viewportRef) {
       viewportRef.current = viewport;
     }
+    // Characters and tall map decorations share this container. Sorting by
+    // their ground contact point lets a character walk behind a tree canopy
+    // and then naturally appear in front after passing it.
+    viewport.sortableChildren = true;
     // Activate plugins
     viewport
       .drag()

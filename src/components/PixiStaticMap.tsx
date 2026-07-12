@@ -65,6 +65,17 @@ export const PixiStaticMap = PixiComponent('StaticMap', {
       }
     }
 
+    // Render large decorative assets as single sprites. Their collision is
+    // still described by objectTiles, so artwork and navigation stay separate.
+    for (const decoration of map.staticSprites.filter((sprite) => sprite.sortY === undefined)) {
+      const sprite = PIXI.Sprite.from(decoration.url);
+      sprite.x = decoration.x;
+      sprite.y = decoration.y;
+      sprite.width = decoration.w;
+      sprite.height = decoration.h;
+      container.addChild(sprite);
+    }
+
     // TODO: Add layers.
     const spritesBySheet = new Map<string, AnimatedSprite[]>();
     for (const sprite of map.animatedSprites) {

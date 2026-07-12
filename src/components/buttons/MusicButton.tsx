@@ -42,7 +42,7 @@ export default function MusicButton() {
     <>
       <Button
         onClick={() => void flipSwitch()}
-        title="播放奥特曼音乐 (按m键播放/静音)"
+        title="播放小镇音乐（按 M 键播放/静音）"
         imgUrl={volumeImg}
       >
         {isPlaying ? '静音' : '音乐'}

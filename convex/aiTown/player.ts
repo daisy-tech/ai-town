@@ -340,7 +340,7 @@ export const playerInputs = {
         throw new Error(`No description for player ${playerId}`);
       }
       description.name = name;
-      description.description = `${name}是来到光之国做客的人类玩家`;
+      description.description = `${name}是来到疯狂动物城做客的孩子`;
       game.descriptionsModified = true;
       return null;
     },

@@ -25,7 +25,7 @@ export default function FreezeButton() {
     <>
       <Button
         onClick={flipSwitch}
-        title="冻结世界时，奥特战士们需要一些时间来停止他们正在做的事情。"
+        title="冻结世界时，宠物伙伴们需要一些时间来停止正在做的事情。"
         imgUrl="/assets/star.svg"
       >
         {frozen ? '恢复' : '冻结'}

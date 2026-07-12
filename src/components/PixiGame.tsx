@@ -14,6 +14,7 @@ import { DebugPath } from './DebugPath.tsx';
 import { PositionIndicator } from './PositionIndicator.tsx';
 import { SHOW_DEBUG_UI } from './Game.tsx';
 import { ServerGame } from '../hooks/serverGame.ts';
+import { PixiMapDecorations } from './PixiMapDecorations.tsx';
 
 export const PixiGame = (props: {
   worldId: Id<'worlds'>;
@@ -110,6 +111,7 @@ export const PixiGame = (props: {
         onpointerup={onMapPointerUp}
         onpointerdown={onMapPointerDown}
       />
+      <PixiMapDecorations map={props.game.worldMap} />
       {players.map(
         (p) =>
           // Only show the path for the human player in non-debug mode.

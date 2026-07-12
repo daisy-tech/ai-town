@@ -2,12 +2,17 @@ import { v } from 'convex/values';
 import { internal } from './_generated/api';
 import { DatabaseReader, MutationCtx, mutation } from './_generated/server';
 import { Descriptions } from '../data/characters';
-import * as map from '../data/gentle';
+import * as gentleMap from '../data/gentle';
+import * as petTownGraybox from '../data/petTownGraybox';
 import { insertInput } from './aiTown/insertInput';
 import { Id } from './_generated/dataModel';
 import { createEngine } from './aiTown/main';
 import { ENGINE_ACTION_DURATION } from './constants';
 import { detectMismatchedLLMProvider } from './util/llm';
+
+// The AI-PetTown branch starts with the 80x60 graybox. Set MAP_VARIANT=gentle
+// before initializing a fresh world to fall back to the original AI Town map.
+const map = process.env.MAP_VARIANT === 'gentle' ? gentleMap : petTownGraybox;
 
 const init = mutation({
   args: {
@@ -78,6 +83,7 @@ async function getOrCreateDefaultWorld(ctx: MutationCtx) {
     bgTiles: map.bgtiles,
     objectTiles: map.objmap,
     animatedSprites: map.animatedsprites,
+    staticSprites: 'staticsprites' in map ? [...map.staticsprites] : [],
   });
   await ctx.scheduler.runAfter(0, internal.aiTown.main.runStep, {
     worldId,

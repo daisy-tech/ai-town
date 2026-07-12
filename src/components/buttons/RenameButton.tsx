@@ -73,7 +73,7 @@ export default function RenameButton() {
       >
         <div className="font-body flex flex-col gap-4">
           <h1 className="text-center text-4xl font-bold font-display game-title">修改名字</h1>
-          <p className="text-center">改名后，奥特战士们会用新名字称呼你。</p>
+          <p className="text-center">改名后，宠物伙伴们会用新名字称呼你。</p>
           <input
             className="w-full p-2 text-xl text-black text-center outline-none"
             value={nameInput}
