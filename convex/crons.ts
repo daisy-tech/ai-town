@@ -20,9 +20,6 @@ crons.daily('vacuum old entries', { hourUTC: 4, minuteUTC: 20 }, internal.crons.
 export default crons;
 
 const TablesToVacuum: TableNames[] = [
-  // Un-comment this to also clean out old conversations.
-  // 'conversationMembers', 'conversations', 'messages',
-
   // Inputs aren't useful unless you're trying to replay history.
   // If you want to support that, you should add a snapshot table, so you can
   // replay from a certain time period. Or stop vacuuming inputs and replay from
@@ -35,6 +32,16 @@ const TablesToVacuum: TableNames[] = [
   // We can vacuum fewer tables without serious consequences, but the only
   // one that will cause issues over time is having >>100k vectors.
   'memoryEmbeddings',
+
+  // Old transcripts and their bookkeeping. Agents keep the *summaries* of
+  // these conversations as memories (vacuumed on the same schedule); the raw
+  // logs only feed the history panel in the UI.
+  'messages',
+  'archivedConversations',
+  'participatedTogether',
+
+  // Pure cache of text embeddings; anything evicted is re-fetched on demand.
+  'embeddingsCache',
 ];
 
 export const vacuumOldEntries = internalMutation({

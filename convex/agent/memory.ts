@@ -324,7 +324,7 @@ export const loadMessages = internalQuery({
   },
 });
 
-async function calculateImportance(description: string) {
+export async function calculateImportance(description: string) {
   const { content: importanceRaw } = await chatCompletion({
     messages: [
       {

@@ -12,6 +12,7 @@ import {
   INVITE_TIMEOUT,
   MAX_CONVERSATION_DURATION,
   MAX_CONVERSATION_MESSAGES,
+  COMPANION_VISIT_ACTIVITY,
   MESSAGE_COOLDOWN,
   MIDPOINT_THRESHOLD,
   PLAYER_CONVERSATION_COOLDOWN,
@@ -64,6 +65,18 @@ export class Agent {
     }
     const conversation = game.world.playerConversation(player);
     const member = conversation?.participants.get(player.id);
+
+    // While a pet is "home" chatting with its child in the companion client,
+    // it stays put: reject invites and skip all autonomous behavior.
+    if (
+      player.activity?.description === COMPANION_VISIT_ACTIVITY &&
+      player.activity.until > now
+    ) {
+      if (conversation && member?.status.kind === 'invited') {
+        conversation.rejectInvite(game, now, player);
+      }
+      return;
+    }
 
     const recentlyAttemptedInvite =
       this.lastInviteAttempt && now < this.lastInviteAttempt + CONVERSATION_COOLDOWN;

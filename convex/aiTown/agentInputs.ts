@@ -8,6 +8,7 @@ import { point } from '../util/types';
 import { Descriptions } from '../../data/characters';
 import { AgentDescription } from './agentDescription';
 import { Agent } from './agent';
+import { COMPANION_VISIT_ACTIVITY } from '../constants';
 
 export const agentInputs = {
   finishRememberConversation: inputHandler({
@@ -152,6 +153,78 @@ export const agentInputs = {
         }),
       );
       return { agentId };
+    },
+  }),
+  // Create an exclusive "apprentice pet" for a child adopting through the
+  // companion client. Unlike createAgent, the identity is generated per
+  // child instead of coming from the fixed Descriptions roster.
+  createCompanionPet: inputHandler({
+    args: {
+      name: v.string(),
+      character: v.string(),
+      identity: v.string(),
+      plan: v.string(),
+      description: v.string(),
+    },
+    handler: (game, now, args) => {
+      const playerId = Player.join(game, now, args.name, args.character, args.description);
+      const agentId = game.allocId('agents');
+      game.world.agents.set(
+        agentId,
+        new Agent({
+          id: agentId,
+          playerId: playerId,
+          inProgressOperation: undefined,
+          lastConversation: undefined,
+          lastInviteAttempt: undefined,
+          toRemember: undefined,
+        }),
+      );
+      game.agentDescriptions.set(
+        agentId,
+        new AgentDescription({
+          agentId: agentId,
+          identity: args.identity,
+          plan: args.plan,
+        }),
+      );
+      return { agentId, playerId };
+    },
+  }),
+  // Mark a pet as "visiting home" (chatting with its child in the client).
+  // While the activity is running, the agent loop won't start conversations
+  // or wander. Passing until <= now ends the visit early.
+  companionVisit: inputHandler({
+    args: {
+      agentId,
+      until: v.number(),
+    },
+    handler: (game, now, args) => {
+      const agentId = parseGameId('agents', args.agentId);
+      const agent = game.world.agents.get(agentId);
+      if (!agent) {
+        throw new Error(`Couldn't find agent: ${agentId}`);
+      }
+      const player = game.world.players.get(agent.playerId);
+      if (!player) {
+        throw new Error(`Couldn't find player: ${agent.playerId}`);
+      }
+      if (args.until > now) {
+        // Leave any in-progress conversation before heading home.
+        const conversation = game.world.playerConversation(player);
+        if (conversation) {
+          conversation.leave(game, now, player);
+        }
+        delete player.pathfinding;
+        player.activity = {
+          description: COMPANION_VISIT_ACTIVITY,
+          emoji: '🏠',
+          until: args.until,
+        };
+      } else if (player.activity?.description === COMPANION_VISIT_ACTIVITY) {
+        player.activity.until = now;
+      }
+      return null;
     },
   }),
 };

@@ -29,17 +29,23 @@ services:
       - CONVEX_CLOUD_ORIGIN=${URL_BASE:-http://127.0.0.1}:${PORT:-3210}
       - CONVEX_SITE_ORIGIN=${URL_BASE:-http://127.0.0.1}:${SITE_PROXY_PORT:-3211}
       - DATABASE_URL=${DATABASE_URL:-}
+      # 关闭遥测：低内存机器上 beacon 连不上外网时会反复重试，浪费资源
+      - DISABLE_BEACON=true
     healthcheck:
+      # 探测放宽：5s 一次的 curl 在系统卡顿时会堆积成僵尸进程，反而拖垮机器。
+      # start_period 放大到 15 分钟，冷启动重建索引期间不计失败。
       test: curl -f http://localhost:3210/version
-      interval: 5s
-      retries: 24
-      start_period: 120s
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 900s
     networks:
       - ai-town-network
 
   dashboard:
     image: ghcr.io/get-convex/convex-dashboard:latest
     restart: unless-stopped
+    mem_limit: 512m
     ports:
       - '${DASHBOARD_PORT:-6791}:6791'
     environment:

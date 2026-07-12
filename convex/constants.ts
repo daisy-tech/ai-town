@@ -58,8 +58,10 @@ export const MESSAGE_COOLDOWN = 2000;
 // Don't run a turn of the agent more than once a second.
 export const AGENT_WAKEUP_THRESHOLD = 1000;
 
-// How old we let memories be before we vacuum them
-export const VACUUM_MAX_AGE = 2 * 7 * 24 * 60 * 60 * 1000;
+// How old we let memories be before we vacuum them. Kept short (3 days) so the
+// database stays small enough for a 4GB host: the bottleneck is the vector
+// index over memoryEmbeddings, which struggles past ~100k rows.
+export const VACUUM_MAX_AGE = 3 * 24 * 60 * 60 * 1000;
 export const DELETE_BATCH_SIZE = 64;
 
 export const HUMAN_IDLE_TOO_LONG = 5 * 60 * 1000;
@@ -81,3 +83,9 @@ export const MAX_PATHFINDS_PER_STEP = 16;
 
 export const DEFAULT_NAME = '人类朋友';
 export const MAX_PLAYER_NAME_LENGTH = 12;
+
+// Activity shown while an adopted pet is "home" chatting with its child in
+// the companion client. Other agents won't invite a pet in this state.
+export const COMPANION_VISIT_ACTIVITY = '回家陪伴小主人';
+// How long a single companion visit lasts before the client must renew it.
+export const COMPANION_VISIT_DURATION = 5 * 60 * 1000;

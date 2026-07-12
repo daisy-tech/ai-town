@@ -27,6 +27,13 @@ export const memoryFields = {
       type: v.literal('reflection'),
       relatedMemoryIds: v.array(v.id('memories')),
     }),
+    // A chat with the pet's adopted child through the companion client.
+    // These live in the same memory space as town memories so the pet can
+    // recall them in town conversations (and vice versa).
+    v.object({
+      type: v.literal('companionChat'),
+      childId: v.id('children'),
+    }),
   ),
 };
 export const memoryTables = {
