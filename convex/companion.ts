@@ -15,6 +15,8 @@ import {
   COMPANION_VISIT_DURATION,
   MAX_PLAYER_NAME_LENGTH,
 } from './constants';
+import { GameId } from './aiTown/ids';
+import { recordCompanionMessageEvent } from './townMind/events';
 
 // 领养可选的物种。character 决定宠物在 2D 小镇里的形象（复用现有 spritesheet），
 // traits 用于生成专属的身份设定。
@@ -403,6 +405,22 @@ export const sendMessage = mutation({
       author: 'child',
       text,
     });
+    // TownMind P1: mirror the raw message into the evidence log (child-private,
+    // 90-day expiry on the text).
+    try {
+      if (adoption.playerId) {
+        await recordCompanionMessageEvent(ctx, {
+          ownerPlayerId: adoption.playerId as GameId<'players'>,
+          author: 'child',
+          text,
+          childId: adoption.childId,
+          adoptionId: adoption._id,
+          sessionId: args.sessionId,
+        });
+      }
+    } catch (e) {
+      console.error('TownMind event write failed for child message', e);
+    }
     await ctx.scheduler.runAfter(0, internal.companionChat.generateReply, {
       sessionId: args.sessionId,
     });

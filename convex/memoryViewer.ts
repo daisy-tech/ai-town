@@ -35,6 +35,7 @@ export const getMemoriesByPlayerId = query({
       description: m.description,
       importance: m.importance,
       type: m.data.type,
+      scope: m.scope ?? (m.data.type === 'companionChat' ? 'child_private' : 'town'),
       createdAt: m._creationTime,
     }));
   },
@@ -47,7 +48,8 @@ export const getAllMemories = query({
     memoryType: v.optional(v.union(
       v.literal('conversation'),
       v.literal('reflection'),
-      v.literal('relationship')
+      v.literal('relationship'),
+      v.literal('companionChat')
     )),
     limit: v.optional(v.number()),
     offset: v.optional(v.number()),
@@ -122,6 +124,8 @@ export const getAllMemories = query({
           description: memory.description,
           importance: memory.importance,
           type: memory.data.type,
+          scope:
+            memory.scope ?? (memory.data.type === 'companionChat' ? 'child_private' : 'town'),
           createdAt: new Date(memory._creationTime).toLocaleString('zh-CN'),
           lastAccess: new Date(memory.lastAccess).toLocaleString('zh-CN'),
         };
@@ -157,6 +161,12 @@ export const getAllMemories = query({
             ...base,
             aboutPlayer: otherPlayerDesc?.name || '未知',
           };
+        } else if (memory.data.type === 'companionChat') {
+          const child = await ctx.db.get(memory.data.childId);
+          return {
+            ...base,
+            childName: child?.name || '未知',
+          };
         }
 
         return base;
@@ -184,6 +194,7 @@ export const getMemoryStats = query({
       conversation: memories.filter(m => m.data.type === 'conversation').length,
       reflection: memories.filter(m => m.data.type === 'reflection').length,
       relationship: memories.filter(m => m.data.type === 'relationship').length,
+      companionChat: memories.filter(m => m.data.type === 'companionChat').length,
     };
 
     // 按角色统计
@@ -249,6 +260,7 @@ export const getMemoryDetail = query({
       description: memory.description,
       importance: memory.importance,
       type: memory.data.type,
+      scope: memory.scope ?? (memory.data.type === 'companionChat' ? 'child_private' : 'town'),
       createdAt: new Date(memory._creationTime).toLocaleString('zh-CN'),
       lastAccess: new Date(memory.lastAccess).toLocaleString('zh-CN'),
       embeddingId: memory.embeddingId,
@@ -304,6 +316,15 @@ export const getMemoryDetail = query({
         aboutPlayer: {
           playerId: relatedPlayerId,
           name: otherPlayerDesc?.name || '未知',
+        },
+      };
+    } else if (memory.data.type === 'companionChat') {
+      const child = await ctx.db.get(memory.data.childId);
+      return {
+        ...base,
+        child: {
+          childId: memory.data.childId,
+          name: child?.name || '未知',
         },
       };
     }

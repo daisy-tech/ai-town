@@ -7,6 +7,7 @@ import { api, internal } from '../_generated/api';
 import * as embeddingsCache from './embeddingsCache';
 import { GameId, conversationId, playerId } from '../aiTown/ids';
 import { NUM_MEMORIES_TO_SEARCH } from '../constants';
+import { scheduleShadowRun } from '../townMind/shadow';
 
 const selfInternal = internal.agent.conversation;
 
@@ -39,17 +40,22 @@ export async function startConversationMessage(
   );
   // Query in Chinese so the embedding lives in the same space as the
   // (Chinese) memory descriptions.
-  const embedding = await embeddingsCache.fetch(
-    ctx,
-    `我和${otherPlayer.name}之间发生过的事，以及我对${otherPlayer.name}的了解`,
-  );
+  const queryText = `我和${otherPlayer.name}之间发生过的事，以及我对${otherPlayer.name}的了解`;
+  const embedding = await embeddingsCache.fetch(ctx, queryText);
 
   const memories = await memory.searchMemories(
     ctx,
     player.id as GameId<'players'>,
     embedding,
     Number(process.env.NUM_MEMORIES_TO_SEARCH) || NUM_MEMORIES_TO_SEARCH,
+    'town',
   );
+  await scheduleShadowRun(ctx, {
+    ownerPlayerId: player.id as GameId<'players'>,
+    audience: 'town',
+    queryText,
+    legacyDescriptions: memories.map((m) => m.description),
+  });
 
   const memoryWithOtherPlayer = memories.find(
     (m) =>
@@ -108,8 +114,21 @@ export async function continueConversationMessage(
   );
   const now = Date.now();
   const started = new Date(conversation.created);
-  const embedding = await embeddingsCache.fetch(ctx, `我对${otherPlayer.name}的了解和看法`);
-  const memories = await memory.searchMemories(ctx, player.id as GameId<'players'>, embedding, 3);
+  const queryText = `我对${otherPlayer.name}的了解和看法`;
+  const embedding = await embeddingsCache.fetch(ctx, queryText);
+  const memories = await memory.searchMemories(
+    ctx,
+    player.id as GameId<'players'>,
+    embedding,
+    3,
+    'town',
+  );
+  await scheduleShadowRun(ctx, {
+    ownerPlayerId: player.id as GameId<'players'>,
+    audience: 'town',
+    queryText,
+    legacyDescriptions: memories.map((m) => m.description),
+  });
   const prompt = [
     `你是${player.name}，你正在和${otherPlayer.name}聊天。`,
     `对话开始于${started.toLocaleString()}，现在是${now.toLocaleString()}。`,

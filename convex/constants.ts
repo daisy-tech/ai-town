@@ -58,11 +58,33 @@ export const MESSAGE_COOLDOWN = 2000;
 // Don't run a turn of the agent more than once a second.
 export const AGENT_WAKEUP_THRESHOLD = 1000;
 
-// How old we let memories be before we vacuum them. Kept short (3 days) so the
-// database stays small enough for a 4GB host: the bottleneck is the vector
-// index over memoryEmbeddings, which struggles past ~100k rows.
+// How old we let *transient* data (inputs, raw town transcripts, embedding
+// cache) get before we vacuum it. Long-term memories are NOT on this
+// schedule anymore: they are kept indefinitely and bounded by the per-player
+// quota below (TownMind P0).
 export const VACUUM_MAX_AGE = 3 * 24 * 60 * 60 * 1000;
 export const DELETE_BATCH_SIZE = 64;
+
+// Raw companion (child ↔ pet) chat transcripts are kept for 90 days, then
+// deleted. Derived memories (summaries) are kept beyond that. This is the
+// retention policy confirmed for child privacy compliance.
+export const COMPANION_RAW_CHAT_MAX_AGE = 90 * 24 * 60 * 60 * 1000;
+
+// Hot memory quota per player. Keeps the memoryEmbeddings vector index small
+// enough for a 4GB host (the index struggles past ~100k rows overall).
+// When a player exceeds the quota, the lowest-value memories (importance +
+// recency) are deleted together with their embeddings.
+export const MAX_MEMORIES_PER_PLAYER = 500;
+// Bound on quota deletions per player per daily run.
+export const MEMORY_QUOTA_DELETE_CAP = 200;
+
+// A companion session with no activity for this long is considered abandoned
+// (client crashed / lost connection without calling endVisit): the sweeper
+// closes it and summarizes it into memory.
+export const COMPANION_SESSION_STALE_AGE = 6 * 60 * 60 * 1000;
+// Wait at least this long after a session ends before the sweeper re-tries
+// memorizing it, so the endVisit-scheduled summary gets a chance to finish.
+export const COMPANION_MEMORIZE_GRACE = 15 * 60 * 1000;
 
 export const HUMAN_IDLE_TOO_LONG = 5 * 60 * 1000;
 

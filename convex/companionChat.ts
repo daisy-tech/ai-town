@@ -6,6 +6,7 @@ import { GameId } from './aiTown/ids';
 import { searchMemories, calculateImportance } from './agent/memory';
 import * as embeddingsCache from './agent/embeddingsCache';
 import { NUM_MEMORIES_TO_SEARCH } from './constants';
+import { scheduleShadowRun } from './townMind/shadow';
 
 const selfInternal = internal.companionChat;
 
@@ -87,16 +88,25 @@ export const generateReply = internalAction({
     const lastChildMessage = [...messages].reverse().find((m) => m.author === 'child');
     let memoryPrompt: string[] = [];
     try {
-      const embedding = await embeddingsCache.fetch(
-        ctx,
-        `${childName}对我说：${lastChildMessage?.text ?? ''}。我和${childName}之间的事，以及我最近在小镇的经历`,
-      );
+      const queryText = `${childName}对我说：${lastChildMessage?.text ?? ''}。我和${childName}之间的事，以及我最近在小镇的经历`;
+      const embedding = await embeddingsCache.fetch(ctx, queryText);
+      // 'companion' audience: the pet may share both its town life and its
+      // private history with this child. (The reverse direction — child-private
+      // memories surfacing in town — is blocked inside searchMemories.)
       const memories = await searchMemories(
         ctx,
         adoption.playerId as GameId<'players'>,
         embedding,
         Number(process.env.NUM_MEMORIES_TO_SEARCH) || NUM_MEMORIES_TO_SEARCH,
+        'companion',
       );
+      await scheduleShadowRun(ctx, {
+        ownerPlayerId: adoption.playerId as GameId<'players'>,
+        audience: 'companion',
+        childId: adoption.childId,
+        queryText,
+        legacyDescriptions: memories.map((m) => m.description),
+      });
       if (memories.length > 0) {
         memoryPrompt = [
           `以下是你的一些相关记忆（包括小镇里的经历和以前与${childName}的聊天）：`,

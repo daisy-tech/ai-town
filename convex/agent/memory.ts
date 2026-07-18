@@ -7,6 +7,24 @@ import { asyncMap } from '../util/asyncMap';
 import { GameId, agentId, conversationId, playerId } from '../aiTown/ids';
 import { SerializedPlayer } from '../aiTown/player';
 import { memoryFields } from './schema';
+import { mirrorLegacyMemory } from '../townMind/events';
+
+// Who is asking for memories. Town retrieval (NPC conversations, reflections)
+// must never see child-private memories; companion retrieval sees everything
+// the pet knows (town life is fine to share with the child, not vice versa).
+export type MemoryAudience = 'town' | 'companion';
+
+// Effective scope of a memory, tolerating rows written before the `scope`
+// field existed: legacy companion-chat memories are child-private.
+export function memoryScopeOf(memory: {
+  scope?: 'town' | 'child_private';
+  data: { type: string };
+}): 'town' | 'child_private' {
+  if (memory.scope) {
+    return memory.scope;
+  }
+  return memory.data.type === 'companionChat' ? 'child_private' : 'town';
+}
 
 // How long to wait before updating a memory's last access time.
 export const MEMORY_ACCESS_THROTTLE = 300_000; // In ms
@@ -35,6 +53,13 @@ export async function rememberConversation(
     playerId,
     conversationId,
   });
+  // The conversation may have been vacuumed before we got to remember it
+  // (e.g. after repeated LLM outages). Nothing to summarize; give up cleanly
+  // so the agent stops retrying.
+  if (data === null) {
+    console.warn(`Conversation ${conversationId} data is gone; skipping memory`);
+    return;
+  }
   const { player, otherPlayer } = data;
   const messages = await ctx.runQuery(selfInternal.loadMessages, { worldId, conversationId });
   if (!messages.length) {
@@ -188,12 +213,16 @@ export const loadConversation = internalQuery({
     if (!playerDescription) {
       throw new Error(`Player description for ${args.playerId} not found`);
     }
+    // The conversation bookkeeping below is vacuumed after a few days. If a
+    // memory task is retried long enough for that to happen, return null so
+    // the caller can give up gracefully instead of retrying forever.
     const conversation = await ctx.db
       .query('archivedConversations')
       .withIndex('worldId', (q) => q.eq('worldId', args.worldId).eq('id', args.conversationId))
       .first();
     if (!conversation) {
-      throw new Error(`Conversation ${args.conversationId} not found`);
+      console.warn(`Conversation ${args.conversationId} not found (vacuumed?)`);
+      return null;
     }
     const otherParticipator = await ctx.db
       .query('participatedTogether')
@@ -205,9 +234,10 @@ export const loadConversation = internalQuery({
       )
       .first();
     if (!otherParticipator) {
-      throw new Error(
+      console.warn(
         `Couldn't find other participant in conversation ${args.conversationId} with player ${args.playerId}`,
       );
+      return null;
     }
     const otherPlayerId = otherParticipator.player2;
     let otherPlayer: SerializedPlayer | Doc<'archivedPlayers'> | null =
@@ -219,7 +249,8 @@ export const loadConversation = internalQuery({
         .first();
     }
     if (!otherPlayer) {
-      throw new Error(`Conversation ${args.conversationId} other player not found`);
+      console.warn(`Conversation ${args.conversationId} other player not found`);
+      return null;
     }
     const otherPlayerDescription = await ctx.db
       .query('playerDescriptions')
@@ -241,6 +272,7 @@ export async function searchMemories(
   playerId: GameId<'players'>,
   searchEmbedding: number[],
   n: number = 3,
+  audience: MemoryAudience = 'town',
 ) {
   const candidates = await ctx.vectorSearch('memoryEmbeddings', 'embedding', {
     vector: searchEmbedding,
@@ -250,6 +282,7 @@ export async function searchMemories(
   const rankedMemories = await ctx.runMutation(selfInternal.rankAndTouchMemories, {
     candidates,
     n,
+    audience,
   });
   return rankedMemories.map(({ memory }) => memory);
 }
@@ -269,17 +302,35 @@ export const rankAndTouchMemories = internalMutation({
   args: {
     candidates: v.array(v.object({ _id: v.id('memoryEmbeddings'), _score: v.number() })),
     n: v.number(),
+    audience: v.optional(v.union(v.literal('town'), v.literal('companion'))),
   },
   handler: async (ctx, args) => {
     const ts = Date.now();
-    const relatedMemories = await asyncMap(args.candidates, async ({ _id }) => {
+    const audience: MemoryAudience = args.audience ?? 'town';
+    const loaded = await asyncMap(args.candidates, async ({ _id, _score }) => {
       const memory = await ctx.db
         .query('memories')
         .withIndex('embeddingId', (q) => q.eq('embeddingId', _id))
         .first();
-      if (!memory) throw new Error(`Memory for embedding ${_id} not found`);
-      return memory;
+      // Tolerate orphaned embeddings (e.g. from historical vacuum runs that
+      // deleted the two tables independently) instead of failing retrieval.
+      if (!memory) {
+        console.warn(`Memory for embedding ${_id} not found; skipping orphaned vector`);
+        return null;
+      }
+      // Privacy boundary: child-private memories never surface for the town
+      // audience (NPC conversations, reflections). Enforced here — after the
+      // vector search, before ranking — so every retrieval path is covered.
+      if (audience === 'town' && memoryScopeOf(memory) === 'child_private') {
+        return null;
+      }
+      return { memory, score: _score };
     });
+    const candidates = loaded.filter((c): c is NonNullable<typeof c> => c !== null);
+    if (candidates.length === 0) {
+      return [];
+    }
+    const relatedMemories = candidates.map((c) => c.memory);
 
     // TODO: fetch <count> recent memories and <count> important memories
     // so we don't miss them in case they were a little less relevant.
@@ -287,13 +338,13 @@ export const rankAndTouchMemories = internalMutation({
       const hoursSinceAccess = (ts - memory.lastAccess) / 1000 / 60 / 60;
       return 0.99 ** Math.floor(hoursSinceAccess);
     });
-    const relevanceRange = makeRange(args.candidates.map((c) => c._score));
+    const relevanceRange = makeRange(candidates.map((c) => c.score));
     const importanceRange = makeRange(relatedMemories.map((m) => m.importance));
     const recencyRange = makeRange(recencyScore);
     const memoryScores = relatedMemories.map((memory, idx) => ({
       memory,
       overallScore:
-        normalize(args.candidates[idx]._score, relevanceRange) +
+        normalize(candidates[idx].score, relevanceRange) +
         normalize(memory.importance, importanceRange) +
         normalize(recencyScore[idx], recencyRange),
     }));
@@ -369,8 +420,23 @@ export const insertMemory = internalMutation({
     });
     await ctx.db.insert('memories', {
       ...memory,
+      scope: memory.scope ?? 'town',
       embeddingId,
     });
+    // TownMind P1 dual-write (shadow system; not user-visible yet).
+    try {
+      await mirrorLegacyMemory(ctx, {
+        ownerPlayerId: memory.playerId as GameId<'players'>,
+        description: memory.description,
+        importance: memory.importance,
+        embedding,
+        eventTime: memory.lastAccess,
+        scope: memory.scope ?? 'town',
+        data: memory.data,
+      });
+    } catch (e) {
+      console.error('TownMind mirror failed for memory insert', e);
+    }
   },
 });
 
@@ -398,12 +464,27 @@ export const insertReflectionMemories = internalMutation({
         playerId,
         embeddingId,
         lastAccess,
+        scope: 'town',
         ...rest,
         data: {
           type: 'reflection',
           relatedMemoryIds,
         },
       });
+      // TownMind P1 dual-write (shadow system; not user-visible yet).
+      try {
+        await mirrorLegacyMemory(ctx, {
+          ownerPlayerId: playerId as GameId<'players'>,
+          description: rest.description,
+          importance: rest.importance,
+          embedding,
+          eventTime: lastAccess,
+          scope: 'town',
+          data: { type: 'reflection', relatedMemoryIds },
+        });
+      } catch (e) {
+        console.error('TownMind mirror failed for reflection insert', e);
+      }
     }
   },
 });
@@ -504,11 +585,14 @@ export const getReflectionMemories = internalQuery({
     if (!playerDescription) {
       throw new Error(`Player description for ${args.playerId} not found`);
     }
-    const memories = await ctx.db
+    const allMemories = await ctx.db
       .query('memories')
       .withIndex('playerId', (q) => q.eq('playerId', player.id))
       .order('desc')
       .take(args.numberOfItems);
+    // Reflections are town-visible, so they must never distill child-private
+    // companion chats — exclude those from the reflection inputs entirely.
+    const memories = allMemories.filter((m) => memoryScopeOf(m) !== 'child_private');
 
     const lastReflection = await ctx.db
       .query('memories')

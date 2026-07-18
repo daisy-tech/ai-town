@@ -1,6 +1,7 @@
 import { v } from 'convex/values';
 import { internalMutation } from './_generated/server';
-import { playerId } from './aiTown/ids';
+import { GameId, playerId } from './aiTown/ids';
+import { mirrorLegacyMemory, recordCompanionMessageEvent } from './townMind/events';
 
 // DB writes used by the companionChat actions.
 
@@ -23,6 +24,23 @@ export const writePetMessage = internalMutation({
       author: 'pet',
       text: args.text,
     });
+    // TownMind P1: mirror the raw message into the evidence log (child-private,
+    // 90-day expiry on the text).
+    try {
+      const adoption = await ctx.db.get(args.adoptionId);
+      if (adoption?.playerId) {
+        await recordCompanionMessageEvent(ctx, {
+          ownerPlayerId: adoption.playerId as GameId<'players'>,
+          author: 'pet',
+          text: args.text,
+          childId: adoption.childId,
+          adoptionId: args.adoptionId,
+          sessionId: args.sessionId,
+        });
+      }
+    } catch (e) {
+      console.error('TownMind event write failed for pet message', e);
+    }
   },
 });
 
@@ -56,10 +74,27 @@ export const insertVisitMemory = internalMutation({
       embeddingId,
       importance: args.importance,
       lastAccess: Date.now(),
+      // Child-private: retrievable only in this pet's companion sessions,
+      // never in town conversations or reflections.
+      scope: 'child_private',
       data: {
         type: 'companionChat',
         childId: args.childId,
       },
     });
+    // TownMind P1 dual-write (shadow system; not user-visible yet).
+    try {
+      await mirrorLegacyMemory(ctx, {
+        ownerPlayerId: args.playerId as GameId<'players'>,
+        description: args.description,
+        importance: args.importance,
+        embedding: args.embedding,
+        eventTime: Date.now(),
+        scope: 'child_private',
+        data: { type: 'companionChat', childId: args.childId },
+      });
+    } catch (e) {
+      console.error('TownMind mirror failed for visit memory', e);
+    }
   },
 });

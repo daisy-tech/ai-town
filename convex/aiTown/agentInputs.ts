@@ -26,18 +26,24 @@ export const agentInputs = {
         !agent.inProgressOperation ||
         agent.inProgressOperation.operationId !== args.operationId
       ) {
-        console.debug(`Agent ${agentId} isn't remembering ${args.operationId}`);
+        console.debug(
+          `Agent ${agentId} finishing remember op ${args.operationId} after timeout or supersession`,
+        );
       } else {
         delete agent.inProgressOperation;
-        delete agent.toRemember;
       }
+      // Always clear toRemember: this input is only sent after the summary
+      // was stored (or the conversation data was gone), even if the engine
+      // already timed the operation out. Leaving it set would re-run the
+      // memorization and store a duplicate memory.
+      delete agent.toRemember;
       return null;
     },
   }),
   finishDoSomething: inputHandler({
     args: {
       operationId: v.string(),
-      agentId: v.id('agents'),
+      agentId,
       destination: v.optional(point),
       invitee: v.optional(v.id('players')),
       activity: v.optional(activity),

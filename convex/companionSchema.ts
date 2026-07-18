@@ -42,7 +42,11 @@ export const companionTables = {
     startedAt: v.number(),
     endedAt: v.optional(v.number()),
     memorized: v.optional(v.boolean()),
-  }).index('adoptionId', ['adoptionId']),
+  })
+    .index('adoptionId', ['adoptionId'])
+    // Used by the hourly sweeper to find sessions that still need memorizing
+    // (memorized is undefined until rememberVisit succeeds).
+    .index('memorized', ['memorized']),
 
   companionMessages: defineTable({
     adoptionId: v.id('adoptions'),

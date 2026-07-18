@@ -113,7 +113,10 @@ export class Agent {
         agentId: this.id,
         conversationId: this.toRemember,
       });
-      delete this.toRemember;
+      // Don't clear `toRemember` here: it's cleared by the
+      // finishRememberConversation input once the summary is actually stored.
+      // If the operation fails or times out (e.g. LLM outage), we retry on a
+      // later tick instead of silently losing the memory.
       return;
     }
     if (conversation && member) {
@@ -211,7 +214,7 @@ export class Agent {
         // Hard cap: if we already tried to farewell but are still here (e.g. timed-out
         // leave ops), exit immediately without another LLM call.
         const hardMessageCap = MAX_CONVERSATION_MESSAGES + 2;
-        if (conversation.numMessages > hardMessageCap) {
+        if (conversation.numMessages >= hardMessageCap) {
           console.log(`${player.id} force-leaving oversized conversation ${conversation.id}`);
           conversation.leave(game, now, player);
           return;

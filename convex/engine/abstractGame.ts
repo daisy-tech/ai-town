@@ -142,7 +142,13 @@ export async function engineInsertInput(
     .withIndex('byInputNumber', (q) => q.eq('engineId', engineId))
     .order('desc')
     .first();
-  const number = prevInput ? prevInput.number + 1 : 0;
+  // The vacuum cron deletes old rows from `inputs`. If it ever empties the
+  // table, numbering would restart at 0 while the engine's
+  // processedInputNumber stays high, making every new input invisible to
+  // `loadInputs` forever. Anchor numbering to the engine's progress too.
+  const engine = await ctx.db.get(engineId);
+  const processedInputNumber = engine?.processedInputNumber ?? -1;
+  const number = Math.max(prevInput ? prevInput.number + 1 : 0, processedInputNumber + 1);
   const inputId = await ctx.db.insert('inputs', {
     engineId,
     number,

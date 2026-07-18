@@ -4,7 +4,13 @@ import { conversationId, playerId } from './ids';
 import { Player } from './player';
 import { inputHandler } from './inputHandler';
 
-import { TYPING_TIMEOUT, CONVERSATION_DISTANCE } from '../constants';
+import {
+  ACTION_TIMEOUT,
+  CONVERSATION_DISTANCE,
+  MAX_CONVERSATION_DURATION,
+  MAX_CONVERSATION_MESSAGES,
+  TYPING_TIMEOUT,
+} from '../constants';
 import { distance, normalize, vector } from '../util/geometry';
 import { Point } from '../util/types';
 import { Game } from './game';
@@ -53,6 +59,21 @@ export class Conversation {
   tick(game: Game, now: number) {
     if (this.isTyping && this.isTyping.since + TYPING_TIMEOUT < now) {
       delete this.isTyping;
+    }
+    // Keep conversation cleanup as a world invariant rather than relying only
+    // on an agent's asynchronous LLM operation. Actions can finish after their
+    // timeout or be interrupted by a backend restart, otherwise leaving both
+    // participants permanently stationary in a farewell loop.
+    const exceededMessageLimit = this.numMessages >= MAX_CONVERSATION_MESSAGES + 2;
+    const exceededDurationLimit =
+      this.created + MAX_CONVERSATION_DURATION + ACTION_TIMEOUT < now;
+    if (exceededMessageLimit || exceededDurationLimit) {
+      console.warn(
+        `Force-stopping stuck conversation ${this.id} ` +
+          `(messages=${this.numMessages}, age=${now - this.created}ms)`,
+      );
+      this.stop(game, now);
+      return;
     }
     if (this.participants.size !== 2) {
       console.warn(`Conversation ${this.id} has ${this.participants.size} participants`);

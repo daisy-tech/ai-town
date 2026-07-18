@@ -3,12 +3,26 @@ import { playerId, conversationId } from '../aiTown/ids';
 import { defineTable } from 'convex/server';
 import { EMBEDDING_DIMENSION } from '../util/llm';
 
+// Visibility scope of a memory (TownMind P0).
+//
+// - `town`: normal town life; retrievable in NPC conversations and reflections.
+// - `child_private`: derived from a child's companion chat. Only ever injected
+//   into that pet's companion sessions — never into town conversations,
+//   reflections, or other agents' prompts.
+//
+// The field is optional for backwards compatibility with rows written before
+// this change; legacy rows fall back to their `data.type` (`companionChat`
+// implies `child_private`, everything else is town-visible). See
+// `memoryScopeOf` in ./memory.ts.
+export const memoryScope = v.union(v.literal('town'), v.literal('child_private'));
+
 export const memoryFields = {
   playerId,
   description: v.string(),
   embeddingId: v.id('memoryEmbeddings'),
   importance: v.number(),
   lastAccess: v.number(),
+  scope: v.optional(memoryScope),
   data: v.union(
     // Setting up dynamics between players
     v.object({
@@ -28,8 +42,9 @@ export const memoryFields = {
       relatedMemoryIds: v.array(v.id('memories')),
     }),
     // A chat with the pet's adopted child through the companion client.
-    // These live in the same memory space as town memories so the pet can
-    // recall them in town conversations (and vice versa).
+    // Stored in the same memory space as town memories, but always
+    // child-private: only retrievable inside that pet's companion sessions,
+    // never in town conversations or reflections.
     v.object({
       type: v.literal('companionChat'),
       childId: v.id('children'),
