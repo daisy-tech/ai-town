@@ -44,6 +44,24 @@ export const writePetMessage = internalMutation({
   },
 });
 
+// 缓存本次会话检索到的记忆行（见 companionChat.ts 的刷新间隔说明）。
+export const updateSessionMemoryCache = internalMutation({
+  args: {
+    sessionId: v.id('companionSessions'),
+    lines: v.array(v.string()),
+    childMessageCount: v.number(),
+  },
+  handler: async (ctx, args) => {
+    const session = await ctx.db.get(args.sessionId);
+    if (!session) {
+      return;
+    }
+    await ctx.db.patch(args.sessionId, {
+      memoryCache: { lines: args.lines, childMessageCount: args.childMessageCount },
+    });
+  },
+});
+
 export const markSessionMemorized = internalMutation({
   args: {
     sessionId: v.id('companionSessions'),

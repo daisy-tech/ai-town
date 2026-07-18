@@ -42,6 +42,15 @@ export const companionTables = {
     startedAt: v.number(),
     endedAt: v.optional(v.number()),
     memorized: v.optional(v.boolean()),
+    // Memory lines injected into the reply prompt, refreshed every few child
+    // messages instead of on every message (saves an embedding API call and
+    // a vector search per reply on the resource-constrained backend).
+    memoryCache: v.optional(
+      v.object({
+        lines: v.array(v.string()),
+        childMessageCount: v.number(),
+      }),
+    ),
   })
     .index('adoptionId', ['adoptionId'])
     // Used by the hourly sweeper to find sessions that still need memorizing

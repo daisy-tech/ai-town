@@ -89,15 +89,25 @@ export class Agent {
     // If we have been wandering but haven't thought about something to do for
     // a while, do something.
     if (!conversation && !doingActivity && (!player.pathfinding || !recentlyAttemptedInvite)) {
+      // While any pet is "home" chatting with its child, quiet the town:
+      // agents keep wandering and doing activities (LLM-free), but don't
+      // start new conversations, so the LLM/backend capacity goes to the
+      // companion chat. In-flight conversations wind down on their own.
+      const companionVisitActive = [...game.world.players.values()].some(
+        (p) => p.activity?.description === COMPANION_VISIT_ACTIVITY && p.activity.until > now,
+      );
       this.startOperation(game, now, 'agentDoSomething', {
         worldId: game.worldId,
         player: player.serialize(),
-        otherFreePlayers: [...game.world.players.values()]
-          .filter((p) => p.id !== player.id)
-          .filter(
-            (p) => ![...game.world.conversations.values()].find((c) => c.participants.has(p.id)),
-          )
-          .map((p) => p.serialize()),
+        otherFreePlayers: companionVisitActive
+          ? []
+          : [...game.world.players.values()]
+              .filter((p) => p.id !== player.id)
+              .filter(
+                (p) =>
+                  ![...game.world.conversations.values()].find((c) => c.participants.has(p.id)),
+              )
+              .map((p) => p.serialize()),
         agent: this.serialize(),
         map: game.worldMap.serialize(),
       });

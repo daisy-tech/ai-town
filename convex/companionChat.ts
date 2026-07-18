@@ -13,6 +13,11 @@ const selfInternal = internal.companionChat;
 // 一次陪伴会话里注入 prompt 的最近消息条数。
 const MAX_PROMPT_MESSAGES = 10;
 
+// 记忆检索的刷新间隔：每收到这么多条孩子的消息才重新检索一次，
+// 其余回复直接复用会话里缓存的记忆，省掉一次 embedding API 调用
+// 和一次向量检索（后端资源紧张时这是每条回复前的主要串行开销）。
+const MEMORY_REFRESH_EVERY_CHILD_MESSAGES = 4;
+
 const COMPANION_STYLE_RULES = [
   `说话要自然、口语化，像真人聊天，不要写成小说或剧本。`,
   `禁止使用*星号动作描写*、括号旁白或表情符号堆砌。`,
@@ -81,41 +86,57 @@ export const generateReply = internalAction({
     const context = await ctx.runQuery(selfInternal.loadSessionContext, {
       sessionId: args.sessionId,
     });
-    const { adoption, childName, identity, plan, messages } = context;
+    const { session, adoption, childName, identity, plan, messages } = context;
     const petName = adoption.petName;
 
     // 从共享记忆（小镇经历 + 过往陪伴聊天）中检索相关内容。
+    // 检索结果按会话缓存，每隔几条孩子消息才刷新一次。
     const lastChildMessage = [...messages].reverse().find((m) => m.author === 'child');
-    let memoryPrompt: string[] = [];
-    try {
-      const queryText = `${childName}对我说：${lastChildMessage?.text ?? ''}。我和${childName}之间的事，以及我最近在小镇的经历`;
-      const embedding = await embeddingsCache.fetch(ctx, queryText);
-      // 'companion' audience: the pet may share both its town life and its
-      // private history with this child. (The reverse direction — child-private
-      // memories surfacing in town — is blocked inside searchMemories.)
-      const memories = await searchMemories(
-        ctx,
-        adoption.playerId as GameId<'players'>,
-        embedding,
-        Number(process.env.NUM_MEMORIES_TO_SEARCH) || NUM_MEMORIES_TO_SEARCH,
-        'companion',
-      );
-      await scheduleShadowRun(ctx, {
-        ownerPlayerId: adoption.playerId as GameId<'players'>,
-        audience: 'companion',
-        childId: adoption.childId,
-        queryText,
-        legacyDescriptions: memories.map((m) => m.description),
-      });
-      if (memories.length > 0) {
-        memoryPrompt = [
-          `以下是你的一些相关记忆（包括小镇里的经历和以前与${childName}的聊天）：`,
-          ...memories.map((m) => ` - ${m.description}`),
-        ];
+    const childMessageCount = messages.filter((m) => m.author === 'child').length;
+    const cache = session.memoryCache;
+    const cacheFresh =
+      cache !== undefined &&
+      childMessageCount - cache.childMessageCount < MEMORY_REFRESH_EVERY_CHILD_MESSAGES;
+    let memoryLines: string[] = cache?.lines ?? [];
+    if (!cacheFresh) {
+      try {
+        const queryText = `${childName}对我说：${lastChildMessage?.text ?? ''}。我和${childName}之间的事，以及我最近在小镇的经历`;
+        const embedding = await embeddingsCache.fetch(ctx, queryText);
+        // 'companion' audience: the pet may share both its town life and its
+        // private history with this child. (The reverse direction — child-private
+        // memories surfacing in town — is blocked inside searchMemories.)
+        const memories = await searchMemories(
+          ctx,
+          adoption.playerId as GameId<'players'>,
+          embedding,
+          Number(process.env.NUM_MEMORIES_TO_SEARCH) || NUM_MEMORIES_TO_SEARCH,
+          'companion',
+        );
+        await scheduleShadowRun(ctx, {
+          ownerPlayerId: adoption.playerId as GameId<'players'>,
+          audience: 'companion',
+          childId: adoption.childId,
+          queryText,
+          legacyDescriptions: memories.map((m) => m.description),
+        });
+        memoryLines = memories.map((m) => m.description);
+        await ctx.runMutation(internal.companionChatDb.updateSessionMemoryCache, {
+          sessionId: args.sessionId,
+          lines: memoryLines,
+          childMessageCount,
+        });
+      } catch (e) {
+        // 检索失败时退回旧缓存（可能为空），不阻塞回复。
+        console.error('检索陪伴聊天记忆失败，继续无记忆回复', e);
       }
-    } catch (e) {
-      console.error('检索陪伴聊天记忆失败，继续无记忆回复', e);
     }
+    const memoryPrompt: string[] =
+      memoryLines.length > 0
+        ? [
+            `以下是你的一些相关记忆（包括小镇里的经历和以前与${childName}的聊天）：`,
+            ...memoryLines.map((line) => ` - ${line}`),
+          ]
+        : [];
 
     const systemPrompt = [
       `你是${petName}，现在你"回家"了，正在陪伴你的小主人${childName}聊天。`,
