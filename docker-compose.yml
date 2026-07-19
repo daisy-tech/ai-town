@@ -1,23 +1,28 @@
 services:
-  frontend:
-    build: .
-    ports:
-      - '5180:5180'
-    volumes:
-      - .:/usr/src/app
-      - /usr/src/app/node_modules
-    environment:
-      - VITE_CONVEX_URL=http://127.0.0.1:${PORT:-3210}
-    networks:
-      - ai-town-network
+  # NOTE: 前端实际由宿主机上的 pm2 进程（ai-town-frontend）serve 在 5180，
+  # 这个容器从未启用；保留配置但注释掉，避免 `docker compose up -d`
+  # 时和 pm2 抢 5180 端口。若要改回 docker 管理，先 pm2 stop 再解开注释。
+  # frontend:
+  #   build: .
+  #   mem_limit: 1g
+  #   ports:
+  #     - '5180:5180'
+  #   volumes:
+  #     - .:/usr/src/app
+  #     - /usr/src/app/node_modules
+  #   environment:
+  #     - VITE_CONVEX_URL=http://127.0.0.1:${PORT:-3210}
+  #   networks:
+  #     - ai-town-network
   backend:
     image: ghcr.io/get-convex/convex-backend:latest
     restart: unless-stopped
-    # 保险丝：防止拖垮整台机器（SSH 登不上）。机器已升级到 8G，
-    # 给后端 6G，留 ~2G 给系统/前端/dashboard。之前 4G 机器时代的
-    # 2800m 上限会让后端反复撞墙，表现为动作执行 transient error、
-    # 引擎操作全部超时、小镇僵死。
-    mem_limit: 6g
+    # 保险丝：防止拖垮整台机器（SSH 登不上）。8G 机器的预算：
+    # backend 4800m + frontend 1g + dashboard 512m + 系统 ~1g ≈ 7.3G，
+    # 总量不超卖，剩余靠 swap 兜底。之前 4G 机器时代的 2800m 上限
+    # 会让后端反复撞墙（动作 transient error、引擎操作全部超时、
+    # 小镇僵死）；一步到 6g 又会和其他进程一起超过物理内存。
+    mem_limit: 4800m
     ports:
       - '${PORT:-3210}:3210'
       - '${SITE_PROXY_PORT:-3211}:3211'
