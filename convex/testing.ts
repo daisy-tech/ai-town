@@ -59,6 +59,36 @@ export const kick = internalMutation({
   },
 });
 
+// One-off admin helper: swap a live player's 2D sprite (e.g. after the child
+// makes a custom model for their pet). Updates the world's playerDescription
+// and the adoption row so future petState reads agree.
+export const setPlayerCharacter = internalMutation({
+  args: {
+    playerId: v.string(),
+    character: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const { worldStatus } = await getDefaultWorld(ctx.db);
+    const description = await ctx.db
+      .query('playerDescriptions')
+      .withIndex('worldId', (q) =>
+        q.eq('worldId', worldStatus.worldId).eq('playerId', args.playerId),
+      )
+      .unique();
+    if (!description) {
+      throw new Error(`No playerDescription for ${args.playerId}`);
+    }
+    await ctx.db.patch(description._id, { character: args.character });
+    const adoptions = await ctx.db.query('adoptions').collect();
+    for (const adoption of adoptions) {
+      if (adoption.playerId === args.playerId && adoption.status === 'active') {
+        await ctx.db.patch(adoption._id, { character: args.character });
+      }
+    }
+    return `Player ${args.playerId} character -> ${args.character}`;
+  },
+});
+
 export const stopAllowed = query({
   handler: async () => {
     return !process.env.STOP_NOT_ALLOWED;

@@ -72,11 +72,12 @@ export const characters: {
     speed: 0.1,
   },
   {
-    // 刀盾狗：小镇守护犬
+    // 刀盾狗：小镇守护犬。像素图由孩子设计的"小刀刀"形象生成
+    // （金盔金盾小菜刀柯基），3帧×4方向。
     name: 'f4',
-    textureUrl: '/ai-town/assets/sprites/pets/daodun.png',
+    textureUrl: '/ai-town/assets/sprites/pets/daodun-pixel.png',
     spritesheetData: character48SpritesheetData,
-    portraitUrl: '/ai-town/assets/sprites/pets/daodun-portrait.png',
+    portraitUrl: '/ai-town/assets/sprites/pets/daodun-pixel-portrait.png',
     speed: 0.1,
   },
   {

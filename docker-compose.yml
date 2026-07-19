@@ -13,8 +13,11 @@ services:
   backend:
     image: ghcr.io/get-convex/convex-backend:latest
     restart: unless-stopped
-    # 保险丝：超过 2.8G 就杀掉容器重启，避免拖垮整台机器（SSH 登不上）
-    mem_limit: 2800m
+    # 保险丝：防止拖垮整台机器（SSH 登不上）。机器已升级到 8G，
+    # 给后端 6G，留 ~2G 给系统/前端/dashboard。之前 4G 机器时代的
+    # 2800m 上限会让后端反复撞墙，表现为动作执行 transient error、
+    # 引擎操作全部超时、小镇僵死。
+    mem_limit: 6g
     ports:
       - '${PORT:-3210}:3210'
       - '${SITE_PROXY_PORT:-3211}:3211'

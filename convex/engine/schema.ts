@@ -47,6 +47,12 @@ export const engine = v.object({
   // end up with two steps overlapping in time, this counter will force them to
   // conflict.
   generationNumber: v.number(),
+
+  // Liveness observation from the `restartDeadWorlds` watchdog: the generation
+  // number it saw on its previous run. An engine whose simulation time lags
+  // real time (catching up after an outage) is still alive as long as its
+  // generation number keeps advancing; only kick it when this stops moving.
+  watchdogGenerationNumber: v.optional(v.number()),
 });
 export type Engine = Infer<typeof engine>;
 

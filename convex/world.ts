@@ -76,7 +76,8 @@ export const restartDeadWorlds = internalMutation({
   handler: async (ctx) => {
     const now = Date.now();
 
-    // Restart an engine if it hasn't run for 2x its action duration.
+    // An engine is a restart candidate if its simulation time lags real time
+    // by more than 2x its action duration.
     const engineTimeout = now - ENGINE_ACTION_DURATION * 2;
     const worlds = await ctx.db.query('worldStatus').collect();
     for (const worldStatus of worlds) {
@@ -87,10 +88,36 @@ export const restartDeadWorlds = internalMutation({
       if (!engine) {
         throw new Error(`Invalid engine ID: ${worldStatus.engineId}`);
       }
-      if (engine.currentTime && engine.currentTime < engineTimeout) {
-        console.warn(`Restarting dead engine ${engine._id}...`);
-        await kickEngine(ctx, worldStatus.worldId);
+      if (!engine.currentTime || engine.currentTime >= engineTimeout) {
+        // Engine is caught up; clear any stale observation.
+        if (engine.watchdogGenerationNumber !== undefined) {
+          await ctx.db.patch(engine._id, { watchdogGenerationNumber: undefined });
+        }
+        continue;
       }
+      // Lagging behind real time. That alone doesn't mean dead: after an
+      // outage the engine simulates max-size steps to catch up, and kicking
+      // it every minute just kills the in-flight run and makes it fall
+      // further behind. Only kick if it made no progress since our last look.
+      if (
+        engine.watchdogGenerationNumber !== undefined &&
+        engine.generationNumber > engine.watchdogGenerationNumber
+      ) {
+        console.debug(
+          `Engine ${engine._id} is lagging but alive (gen ${engine.watchdogGenerationNumber} -> ${engine.generationNumber}), not kicking`,
+        );
+        await ctx.db.patch(engine._id, { watchdogGenerationNumber: engine.generationNumber });
+        continue;
+      }
+      if (engine.watchdogGenerationNumber === undefined) {
+        // First time we see it lagging: record and give it one cron interval
+        // to prove it's stepping.
+        await ctx.db.patch(engine._id, { watchdogGenerationNumber: engine.generationNumber });
+        continue;
+      }
+      console.warn(`Restarting dead engine ${engine._id}...`);
+      await ctx.db.patch(engine._id, { watchdogGenerationNumber: undefined });
+      await kickEngine(ctx, worldStatus.worldId);
     }
   },
 });
