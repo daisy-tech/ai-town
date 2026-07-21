@@ -25,19 +25,23 @@ crons.interval(
 
 crons.interval('restart dead worlds', { seconds: 60 }, internal.world.restartDeadWorlds);
 
-crons.daily('vacuum old entries', { hourUTC: 4, minuteUTC: 20 }, internal.crons.vacuumOldEntries);
+// Daily maintenance runs in the small hours of Beijing time (UTC+8), where
+// nearly all users are: 16:30 UTC = 00:30 Beijing. The host crontab restarts
+// the backend container at 19:00 UTC (03:00 Beijing) — keep these earlier so
+// a restart never interrupts them.
+crons.daily('vacuum old entries', { hourUTC: 16, minuteUTC: 30 }, internal.crons.vacuumOldEntries);
 
 // TownMind P0: raw child↔pet transcripts are deleted after 90 days (derived
 // memories are kept); long-term memories are bounded by a per-player quota
 // instead of an age-based vacuum.
 crons.daily(
   'companion raw chat retention',
-  { hourUTC: 4, minuteUTC: 40 },
+  { hourUTC: 16, minuteUTC: 40 },
   internal.crons.enforceCompanionRetention,
 );
 crons.daily(
   'enforce memory quota',
-  { hourUTC: 5, minuteUTC: 0 },
+  { hourUTC: 17, minuteUTC: 0 },
   internal.crons.enforceMemoryQuota,
 );
 // TownMind evidence log: raw child-chat event text expires at 90 days. The
@@ -45,7 +49,7 @@ crons.daily(
 // irrecoverably removed.
 crons.daily(
   'redact expired memory events',
-  { hourUTC: 4, minuteUTC: 50 },
+  { hourUTC: 16, minuteUTC: 50 },
   internal.crons.redactExpiredMemoryEvents,
 );
 
