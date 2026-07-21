@@ -35,6 +35,7 @@ import type * as aiTown_playerDescription from "../aiTown/playerDescription.js";
 import type * as aiTown_world from "../aiTown/world.js";
 import type * as aiTown_worldMap from "../aiTown/worldMap.js";
 import type * as companion from "../companion.js";
+import type * as companionAuth from "../companionAuth.js";
 import type * as companionChat from "../companionChat.js";
 import type * as companionChatDb from "../companionChatDb.js";
 import type * as companionSchema from "../companionSchema.js";
@@ -97,6 +98,7 @@ declare const fullApi: ApiFromModules<{
   "aiTown/world": typeof aiTown_world;
   "aiTown/worldMap": typeof aiTown_worldMap;
   companion: typeof companion;
+  companionAuth: typeof companionAuth;
   companionChat: typeof companionChat;
   companionChatDb: typeof companionChatDb;
   companionSchema: typeof companionSchema;

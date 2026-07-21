@@ -8,13 +8,50 @@ import { agentId, playerId } from './aiTown/ids';
 // only add the child identity, the adoption link, and the client-side chat
 // transcript.
 export const companionTables = {
-  // A child using the client. Identified by a secret device token issued at
-  // registration (no accounts / passwords in M1).
+  // A guardian account, identified by a Chinese mobile number. Owns one or
+  // more child profiles (and through them, pets); logging in on any device
+  // with the phone number recovers everything. The phone number is only ever
+  // stored here — never in memories or prompts.
+  accounts: defineTable({
+    phone: v.string(),
+    createdAt: v.number(),
+  }).index('phone', ['phone']),
+
+  // One-time login codes. Test mode: the code is returned to the client and
+  // shown on screen (no SMS provider wired up yet); switching to real SMS
+  // later only changes requestCode, not this table.
+  smsCodes: defineTable({
+    phone: v.string(),
+    code: v.string(),
+    expiresAt: v.number(),
+    attempts: v.number(),
+    usedAt: v.optional(v.number()),
+  }).index('phone', ['phone']),
+
+  // A logged-in device. The token is the client's credential for every
+  // companion API call; logout deletes the row. `currentChildId` is which of
+  // the account's child profiles (= which pet) this device is looking at.
+  authSessions: defineTable({
+    token: v.string(),
+    accountId: v.id('accounts'),
+    currentChildId: v.optional(v.id('children')),
+    createdAt: v.number(),
+    lastActiveAt: v.number(),
+  })
+    .index('token', ['token'])
+    .index('accountId', ['accountId']),
+
+  // A child profile. Belongs to an account (accountId); each profile has at
+  // most one active pet. `deviceToken` is the legacy pre-account credential:
+  // kept for old rows, no longer issued or accepted.
   children: defineTable({
     name: v.string(),
-    deviceToken: v.string(),
+    deviceToken: v.optional(v.string()),
+    accountId: v.optional(v.id('accounts')),
     createdAt: v.number(),
-  }).index('deviceToken', ['deviceToken']),
+  })
+    .index('deviceToken', ['deviceToken'])
+    .index('accountId', ['accountId']),
 
   // One active adoption per child. The pet is a full agent in the shared
   // world; agentId/playerId are filled in once the engine processes the

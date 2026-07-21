@@ -17,6 +17,7 @@ import {
 } from './constants';
 import { GameId } from './aiTown/ids';
 import { recordCompanionMessageEvent } from './townMind/events';
+import { authError, sessionByToken } from './companionAuth';
 
 // 领养可选的物种。character 决定宠物在 2D 小镇里的形象（复用现有 spritesheet），
 // traits 用于生成专属的身份设定。
@@ -34,13 +35,34 @@ const MAX_MESSAGE_LENGTH = 500;
 const FINALIZE_ADOPTION_MAX_ATTEMPTS = 60;
 const FINALIZE_ADOPTION_POLL_MS = 2000;
 
-async function childByToken(db: DatabaseReader, deviceToken: string) {
-  const child = await db
+// Resolve the client's credential (an authSessions token issued by
+// companionAuth:verifyCode) to the child profile this device is looking at.
+// Legacy children.deviceToken credentials are no longer accepted: every
+// device goes through phone login once, and old children were bound to their
+// accounts via companionAuth:bindLegacyChild.
+async function childByTokenOrNull(db: DatabaseReader, deviceToken: string) {
+  const session = await sessionByToken(db, deviceToken);
+  if (!session) {
+    throw authError();
+  }
+  if (session.currentChildId) {
+    const child = await db.get(session.currentChildId);
+    if (child) {
+      return child;
+    }
+  }
+  // No profile selected yet (fresh account, or the profile was deleted):
+  // fall back to the account's first child.
+  return await db
     .query('children')
-    .withIndex('deviceToken', (q) => q.eq('deviceToken', deviceToken))
-    .unique();
+    .withIndex('accountId', (q) => q.eq('accountId', session.accountId))
+    .first();
+}
+
+async function childByToken(db: DatabaseReader, deviceToken: string) {
+  const child = await childByTokenOrNull(db, deviceToken);
   if (!child) {
-    throw new ConvexError('设备未注册，请先注册');
+    throw new ConvexError('还没有创建档案，请先告诉我们你的名字');
   }
   return child;
 }
@@ -89,20 +111,26 @@ export const heartbeat = mutation({
     deviceToken: v.string(),
   },
   handler: async (ctx, args) => {
-    const child = await childByToken(ctx.db, args.deviceToken);
-    const adoption = await activeAdoption(ctx.db, child._id);
+    // Tolerate the no-profile state: the world must be awake for adoption to
+    // work, and the client heartbeats from the registration screen too.
+    const child = await childByTokenOrNull(ctx.db, args.deviceToken);
+    const adoption = child ? await activeAdoption(ctx.db, child._id) : null;
     const worldId = adoption?.worldId ?? (await defaultWorldId(ctx.db));
     await wakeWorld(ctx, worldId);
   },
 });
 
-// 注册孩子身份。返回的 deviceToken 是客户端后续所有请求的凭证，
-// 客户端应将其保存在钥匙串中。
+// 登录后创建孩子档案，绑定到当前账号，并设为本设备正在看的档案。
 export const registerChild = mutation({
   args: {
+    deviceToken: v.string(),
     name: v.string(),
   },
   handler: async (ctx, args) => {
+    const session = await sessionByToken(ctx.db, args.deviceToken);
+    if (!session) {
+      throw authError();
+    }
     const name = args.name.trim();
     if (!name) {
       throw new ConvexError('名字不能为空');
@@ -110,13 +138,13 @@ export const registerChild = mutation({
     if (name.length > MAX_PLAYER_NAME_LENGTH) {
       throw new ConvexError(`名字最长${MAX_PLAYER_NAME_LENGTH}个字符`);
     }
-    const deviceToken = crypto.randomUUID();
     const childId = await ctx.db.insert('children', {
       name,
-      deviceToken,
+      accountId: session.accountId,
       createdAt: Date.now(),
     });
-    return { childId, deviceToken };
+    await ctx.db.patch(session._id, { currentChildId: childId });
+    return { childId };
   },
 });
 
@@ -257,7 +285,11 @@ export const petState = query({
     deviceToken: v.string(),
   },
   handler: async (ctx, args) => {
-    const child = await childByToken(ctx.db, args.deviceToken);
+    const child = await childByTokenOrNull(ctx.db, args.deviceToken);
+    if (!child) {
+      // Logged in but no profile yet: the client shows the registration step.
+      return { child: null, adoption: null };
+    }
     const adoption = await activeAdoption(ctx.db, child._id);
     if (!adoption) {
       return { child: { name: child.name }, adoption: null };
